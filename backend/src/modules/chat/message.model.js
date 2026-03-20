@@ -1,0 +1,69 @@
+﻿const mongoose = require("mongoose");
+
+const attachmentSchema = new mongoose.Schema(
+  {
+    url: {
+      type: String,
+      required: true
+    },
+    publicId: {
+      type: String,
+      default: ""
+    },
+    type: {
+      type: String,
+      enum: ["image", "video"],
+      default: "image"
+    }
+  },
+  {
+    _id: false
+  }
+);
+
+const messageSchema = new mongoose.Schema(
+  {
+    roomId: {
+      type: String,
+      required: true,
+      index: true
+    },
+    participants: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+        index: true
+      }
+    ],
+    sender: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
+    receiver: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
+    body: {
+      type: String,
+      trim: true,
+      default: ""
+    },
+    attachments: [attachmentSchema],
+    deliveredAt: {
+      type: Date,
+      default: Date.now
+    },
+    seenAt: {
+      type: Date,
+      default: null
+    }
+  },
+  {
+    timestamps: true
+  }
+);
+
+module.exports = mongoose.models.Message || mongoose.model("Message", messageSchema);
