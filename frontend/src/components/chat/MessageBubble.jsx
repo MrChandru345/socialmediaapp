@@ -1,5 +1,5 @@
-export default function MessageBubble({ message }) {
-  const incoming = message.from === "them";
+export default function MessageBubble({ message, isMe }) {
+  const incoming = !isMe;
 
   return (
     <div className={`message-row ${incoming ? "message-row--incoming" : "message-row--outgoing"}`}>
@@ -7,7 +7,12 @@ export default function MessageBubble({ message }) {
       <div className={`message-bubble ${incoming ? "message-bubble--incoming" : "message-bubble--outgoing"}`}>
         <p>{message.text}</p>
         {message.attachment ? <img alt="Shared media" className="message-bubble__attachment" src={message.attachment} /> : null}
-        <span>{message.time}</span>
+        <div className="message-bubble__footer">
+          <span>{message.time}</span>
+          {isMe && message.seen && (
+            <span className="material-symbols-outlined seen-icon">done_all</span>
+          )}
+        </div>
       </div>
     </div>
   );

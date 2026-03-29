@@ -1,4 +1,5 @@
-﻿const {
+const mongoose = require("mongoose");
+const {
   AppError,
   buildRoomId,
   normalizeMediaInput,
@@ -39,35 +40,76 @@ function formatMessage(message) {
 }
 
 async function listConversations(userId) {
-  const messages = await Message.find({ participants: userId })
-    .sort({ createdAt: -1 })
-    .populate("sender", "username fullName avatar role isOnline lastSeen")
-    .populate("receiver", "username fullName avatar role isOnline lastSeen")
-    .lean();
-
-  const conversations = new Map();
-
-  messages.forEach((message) => {
-    const senderId = String(message.sender._id);
-    const receiverId = String(message.receiver._id);
-    const otherUser = senderId === String(userId) ? message.receiver : message.sender;
-    const otherUserId = String(otherUser._id);
-
-    if (!conversations.has(otherUserId)) {
-      conversations.set(otherUserId, {
-        otherUser: formatChatUser(otherUser),
-        lastMessage: formatMessage(message),
-        unreadCount: 0
-      });
+  const conversations = await Message.aggregate([
+    {
+      $match: {
+        participants: new mongoose.Types.ObjectId(userId)
+      }
+    },
+    {
+      $sort: { createdAt: -1 }
+    },
+    {
+      $group: {
+        _id: "$roomId",
+        lastMessage: { $first: "$$ROOT" },
+        unreadCount: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $eq: ["$receiver", new mongoose.Types.ObjectId(userId)] },
+                  { $eq: ["$seenAt", null] }
+                ]
+              },
+              1,
+              0
+            ]
+          }
+        }
+      }
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "lastMessage.participants",
+        foreignField: "_id",
+        as: "participantsInfo"
+      }
+    },
+    {
+      $project: {
+        roomId: "$_id",
+        lastMessage: 1,
+        unreadCount: 1,
+        otherUser: {
+          $arrayElemAt: [
+            {
+              $filter: {
+                input: "$participantsInfo",
+                as: "p",
+                cond: { $ne: ["$$p._id", new mongoose.Types.ObjectId(userId)] }
+              }
+            },
+            0
+          ]
+        }
+      }
+    },
+    {
+      $sort: { "lastMessage.createdAt": -1 }
     }
+  ]);
 
-    if (receiverId === String(userId) && !message.seenAt) {
-      conversations.get(otherUserId).unreadCount += 1;
-    }
-  });
+  const items = conversations.map((conv) => ({
+    roomId: conv.roomId,
+    otherUser: formatChatUser(conv.otherUser),
+    lastMessage: formatMessage(conv.lastMessage),
+    unreadCount: conv.unreadCount
+  }));
 
   return {
-    items: Array.from(conversations.values()),
+    items,
     onlineUserIds: getOnlineUsers()
   };
 }

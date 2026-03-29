@@ -76,6 +76,14 @@ export default function App() {
         }
       />
       <Route
+        path="/profile/:identifier"
+        element={
+          <ProtectedPage>
+            <Profile />
+          </ProtectedPage>
+        }
+      />
+      <Route
         path="/chat"
         element={
           <ProtectedPage>

@@ -1,8 +1,16 @@
 import api from "./api";
 
 export const notificationService = {
-  async list() {
-    const response = await api.get("/notifications");
+  async list(params = {}) {
+    const response = await api.get("/notifications", { params });
+    return response.data.data;
+  },
+  async markRead(notificationId) {
+    const response = await api.patch(`/notifications/${notificationId}/read`);
+    return response.data.data;
+  },
+  async markAllRead() {
+    const response = await api.patch("/notifications/read-all");
     return response.data.data;
   }
 };

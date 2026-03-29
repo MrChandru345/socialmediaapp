@@ -1,4 +1,9 @@
-﻿const { AppError, buildPaginationMeta, parsePagination, sanitizeUser } = require("../../utils/helpers");
+const {
+  AppError,
+  buildPaginationMeta,
+  parsePagination,
+  sanitizeUser
+} = require("../../utils/helpers");
 const { emitUserEvent } = require("../chat/socket");
 const Notification = require("./notification.model");
 
@@ -30,19 +35,21 @@ async function listNotifications(userId, query) {
   const { page, limit, skip } = parsePagination(query);
   const filter = { recipient: userId };
 
-  const [notifications, total] = await Promise.all([
+  const [notifications, total, unreadCount] = await Promise.all([
     Notification.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .populate("actor", "username fullName avatar role")
       .lean(),
-    Notification.countDocuments(filter)
+    Notification.countDocuments(filter),
+    Notification.countDocuments({ recipient: userId, isRead: false })
   ]);
 
   return {
     items: notifications.map(formatNotification),
-    meta: buildPaginationMeta(page, limit, total)
+    meta: buildPaginationMeta(page, limit, total),
+    unreadCount
   };
 }
 
@@ -70,13 +77,14 @@ async function markNotificationRead(userId, notificationId) {
 }
 
 async function markAllNotificationsRead(userId) {
-  await Notification.updateMany(
+  const result = await Notification.updateMany(
     { recipient: userId, isRead: false },
     { $set: { isRead: true } }
   );
 
   return {
-    updated: true
+    updated: true,
+    updatedCount: result.modifiedCount || 0
   };
 }
 

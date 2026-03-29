@@ -1,22 +1,12 @@
-import { useState } from "react";
-
 import { formatCompactNumber } from "../../utils/helpers";
 
-export default function LikeButton({ count, liked = true }) {
-  const [isLiked, setIsLiked] = useState(liked);
-  const [likes, setLikes] = useState(count);
-
-  function toggleLike() {
-    setIsLiked((current) => !current);
-    setLikes((current) => current + (isLiked ? -1 : 1));
-  }
-
+export default function LikeButton({ count, disabled = false, liked = false, onClick }) {
   return (
-    <button className="metric-button" onClick={toggleLike} type="button">
-      <span className={`material-symbols-outlined ${isLiked ? "filled metric-button__liked" : ""}`}>
+    <button className="metric-button" disabled={disabled} onClick={onClick} type="button">
+      <span className={`material-symbols-outlined ${liked ? "filled metric-button__liked" : ""}`}>
         favorite
       </span>
-      <span>{formatCompactNumber(likes)}</span>
+      <span>{formatCompactNumber(count)}</span>
     </button>
   );
 }

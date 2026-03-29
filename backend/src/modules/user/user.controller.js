@@ -1,5 +1,12 @@
-﻿const { asyncHandler } = require("../../middleware/error.middleware");
-const { getProfile, getSuggestions, searchUsers, updateProfile } = require("./user.service");
+const { asyncHandler } = require("../../middleware/error.middleware");
+const {
+  getProfile,
+  getProfilePosts,
+  getSuggestions,
+  searchUsers,
+  updateProfile,
+  getFollowing
+} = require("./user.service");
 
 const getUserProfile = asyncHandler(async (req, res) => {
   const user = await getProfile(req.params.identifier, req.user?._id);
@@ -7,6 +14,15 @@ const getUserProfile = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     data: user
+  });
+});
+
+const getUserProfilePosts = asyncHandler(async (req, res) => {
+  const posts = await getProfilePosts(req.params.identifier, req.user?._id, req.query);
+
+  res.json({
+    success: true,
+    data: posts
   });
 });
 
@@ -21,7 +37,7 @@ const updateMyProfile = asyncHandler(async (req, res) => {
 });
 
 const searchForUsers = asyncHandler(async (req, res) => {
-  const users = await searchUsers(req.query.q);
+  const users = await searchUsers(req.query.q, req.user?._id);
 
   res.json({
     success: true,
@@ -38,9 +54,20 @@ const listSuggestions = asyncHandler(async (req, res) => {
   });
 });
 
+const getMyFollowing = asyncHandler(async (req, res) => {
+  const users = await getFollowing(req.user._id);
+
+  res.json({
+    success: true,
+    data: users
+  });
+});
+
 module.exports = {
   getUserProfile,
+  getUserProfilePosts,
   listSuggestions,
   searchForUsers,
-  updateMyProfile
+  updateMyProfile,
+  getMyFollowing
 };
