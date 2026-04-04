@@ -6,6 +6,11 @@ export const chatService = {
     return response.data.data;
   },
   
+  async getUnreadCount() {
+    const response = await api.get("/chat/unread-count");
+    return response.data.data;
+  },
+  
   async getMessages(userId, params = {}) {
     const response = await api.get(`/chat/${userId}`, { params });
     return response.data.data;
@@ -41,6 +46,16 @@ export const chatService = {
     const response = await api.delete(`/chat/message/${messageId}`, {
       data: { action }
     });
+    return response.data.data;
+  },
+
+  async reactToMessage(messageId, emoji) {
+    const response = await api.post(`/chat/message/${messageId}/react`, { emoji });
+    return response.data.data;
+  },
+
+  async clearConversation(userId) {
+    const response = await api.delete(`/chat/conversations/${userId}`);
     return response.data.data;
   },
 

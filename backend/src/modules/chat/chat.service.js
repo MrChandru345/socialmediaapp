@@ -104,7 +104,8 @@ async function listConversations(userId) {
               {
                 $and: [
                   { $eq: ["$receiver", new mongoose.Types.ObjectId(userId)] },
-                  { $eq: ["$seenAt", null] }
+                  { $eq: ["$seenAt", null] },
+                  { $not: { $in: [new mongoose.Types.ObjectId(userId), "$deletedFor"] } }
                 ]
               },
               1,
@@ -159,8 +160,54 @@ async function listConversations(userId) {
   };
 }
 
+async function getTotalUnreadCount(userId) {
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  return await Message.countDocuments({
+    receiver: userObjectId,
+    seenAt: null,
+    deletedFor: { $ne: userObjectId }
+  });
+}
+
+async function clearConversation(userId, withUserId) {
+  try {
+    if (!userId || !withUserId) {
+      throw new AppError(400, "Missing required user IDs for deletion");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(withUserId)) {
+      throw new AppError(400, "Invalid user ID format provided for deletion");
+    }
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const withUserObjectId = new mongoose.Types.ObjectId(withUserId);
+    const roomId = buildRoomId(userId, withUserId);
+    
+    console.log(`[ChatService] Robust Deletion: Room ${roomId} | Users ${userId}, ${withUserId}`);
+
+    // Mark all existing messages as deleted for this user
+    const result = await Message.updateMany(
+      { 
+        $or: [
+          { roomId },
+          { participants: { $all: [userObjectId, withUserObjectId] } }
+        ],
+        deletedFor: { $ne: userObjectId } 
+      },
+      { $addToSet: { deletedFor: userObjectId } }
+    );
+
+    console.log(`[ChatService] Successfully marked ${result.modifiedCount} messages as deleted`);
+    return { success: true, count: result.modifiedCount || 0 };
+  } catch (error) {
+    console.error("[ChatService] Error in clearConversation:", error);
+    throw error;
+  }
+}
+
 async function getConversation(userId, withUserId, query) {
-  const { limit, skip } = parsePagination(query);
+  // Use a much larger default limit (500 instead of 10) for fetching messages
+  const { limit, skip } = parsePagination({ limit: 500, ...query });
   const roomId = buildRoomId(userId, withUserId);
 
   const messages = await Message.find({ 
@@ -229,15 +276,6 @@ async function sendMessage(userId, receiverId, payload, files) {
   emitUserEvent(receiverId, "chat:message", formattedMessage);
   emitUserEvent(userId, "chat:message", formattedMessage);
 
-  await createNotification({
-    recipient: receiverId,
-    actor: userId,
-    type: "message",
-    entityId: message._id,
-    entityModel: "Message",
-    message: body ? "sent you a message" : "shared an attachment with you"
-  });
-
   return formattedMessage;
 }
 
@@ -260,9 +298,54 @@ async function markConversationSeen(userId, withUserId) {
     roomId
   });
 
+  // Also emit to the current user to sync all their open tabs
+  emitUserEvent(userId, "chat:seen", {
+    byUserId: String(userId),
+    roomId
+  });
+
   return {
     updatedCount: result.modifiedCount
   };
+}
+
+async function toggleMessageReaction(userId, messageId, emoji) {
+  const message = await Message.findById(messageId);
+  if (!message) {
+    const { AppError } = require("../../middleware/error.middleware");
+    throw new AppError(404, "Message not found");
+  }
+
+  const existingReactionIndex = message.reactions.findIndex(
+    (r) => String(r.user) === String(userId)
+  );
+
+  if (existingReactionIndex !== -1) {
+    if (message.reactions[existingReactionIndex].emoji === emoji) {
+      // Remove same emoji
+      message.reactions.splice(existingReactionIndex, 1);
+    } else {
+      // Switch emoji
+      message.reactions[existingReactionIndex].emoji = emoji;
+    }
+  } else {
+    // Add new
+    message.reactions.push({ user: userId, emoji });
+  }
+
+  await message.save();
+  
+  const reactionData = {
+    messageId: String(message._id),
+    roomId: message.roomId,
+    reactions: message.reactions
+  };
+
+  const recipientId = String(message.receiver) === String(userId) ? String(message.sender) : String(message.receiver);
+  emitUserEvent(recipientId, "chat:reaction_update", reactionData);
+  emitUserEvent(userId, "chat:reaction_update", reactionData);
+
+  return message.reactions;
 }
 
 async function deleteMessage(userId, messageId, action) {
@@ -342,5 +425,8 @@ module.exports = {
   createNote,
   getActiveNotes,
   deleteNote,
-  uploadMediaFiles
+  uploadMediaFiles,
+  getTotalUnreadCount,
+  toggleMessageReaction,
+  clearConversation
 };

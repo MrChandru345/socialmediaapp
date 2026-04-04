@@ -7,7 +7,10 @@ const {
   deleteMessage,
   createNote,
   getActiveNotes,
-  deleteNote
+  deleteNote,
+  getTotalUnreadCount,
+  toggleMessageReaction,
+  clearConversation
 } = require("./chat.service");
 
 const getConversationList = asyncHandler(async (req, res) => {
@@ -72,6 +75,22 @@ const removeNote = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "Note deleted" });
 });
 
+const getUnreadCount = asyncHandler(async (req, res) => {
+  const count = await getTotalUnreadCount(req.user._id);
+  res.json({ success: true, data: count });
+});
+
+const reactToMessage = asyncHandler(async (req, res) => {
+  const { emoji } = req.body;
+  const reactions = await toggleMessageReaction(req.user._id, req.params.messageId, emoji);
+  res.json({ success: true, data: reactions });
+});
+
+const removeConversation = asyncHandler(async (req, res) => {
+  const result = await clearConversation(req.user._id, req.params.withUserId);
+  res.json({ success: true, data: result });
+});
+
 module.exports = {
   createMessage,
   getConversationList,
@@ -80,5 +99,8 @@ module.exports = {
   removeMessage,
   addNote,
   fetchNotes,
-  removeNote
+  removeNote,
+  getUnreadCount,
+  reactToMessage,
+  removeConversation
 };

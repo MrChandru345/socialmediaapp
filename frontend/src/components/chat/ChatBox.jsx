@@ -22,6 +22,9 @@ export default function ChatBox() {
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showConvMenu, setShowConvMenu] = useState(null); // ID of conversation whose menu is open
+  const [deletingConversationId, setDeletingConversationId] = useState(null); // ID for custom delete confirm
+  const convMenuRef = useRef(null);
   const [replyingToMessage, setReplyingToMessage] = useState(null);
   
   const [isRecording, setIsRecording] = useState(false);
@@ -39,6 +42,15 @@ export default function ChatBox() {
   const [showNoteReplyEmojiPicker, setShowNoteReplyEmojiPicker] = useState(false);
   
   const [showUserInfo, setShowUserInfo] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+  const [isSending, setIsSending] = useState(false);
+  const [viewerImage, setViewerImage] = useState(null);
+
+  const [showNewMessageModal, setShowNewMessageModal] = useState(false);
+  const [messageSearchQuery, setMessageSearchQuery] = useState("");
+  const [messageSearchResults, setMessageSearchResults] = useState([]);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -61,22 +73,9 @@ export default function ChatBox() {
         ]);
 
         const convoItems = [...(chatData.items || [])];
-        const existingIds = new Set(convoItems.map((c) => String(c.otherUser.id)));
+        const existingIds = new Set(convoItems.map((c) => String(c.otherUser.id || c.otherUser._id)));
 
-        // Merge following into conversations list
-        followingData.forEach((userItem) => {
-          if (!existingIds.has(String(userItem.id))) {
-            convoItems.push({
-              isNew: true,
-              otherUser: userItem,
-              lastMessage: { body: "Say hi!", createdAt: new Date().toISOString() },
-              unreadCount: 0
-            });
-            existingIds.add(String(userItem.id));
-          }
-        });
-
-        // Ensure requested user from Profile exists
+        // Only add requested user from Profile if they aren't already in the message list
         if (requestedUserId && !existingIds.has(String(requestedUserId))) {
           try {
              const profileUser = await userService.getProfile(requestedUserId);
@@ -86,7 +85,8 @@ export default function ChatBox() {
                lastMessage: { body: "Start a conversation", createdAt: new Date().toISOString() },
                unreadCount: 0
              });
-             existingIds.add(String(profileUser.id));
+             existingIds.add(String(profileUser.id || profileUser._id));
+             setActiveConversationId(profileUser.id || profileUser._id);
           } catch(e) {
              console.error("Failed to load requested user profile", e);
           }
@@ -138,6 +138,16 @@ export default function ChatBox() {
     loadMessages();
     setOtherUserTyping(false);
   }, [activeConversationId]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (convMenuRef.current && !convMenuRef.current.contains(event.target)) {
+        setShowConvMenu(null);
+      }
+    }
+    if (showConvMenu) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showConvMenu]);
 
   useEffect(() => {
     if (!socket) return;
@@ -213,7 +223,16 @@ export default function ChatBox() {
     }
 
     function handleMessageDeleted({ messageId }) {
-      setMessages((prev) => prev.filter(m => m.id !== messageId));
+      setMessages((prev) => prev.filter(m => [m.id, m._id].includes(messageId) === false));
+    }
+
+    function handleReactionUpdate({ messageId, reactions }) {
+      setMessages((prev) => prev.map((m) => {
+        if (m.id === messageId || m._id === messageId) {
+          return { ...m, reactions };
+        }
+        return m;
+      }));
     }
 
     socket.on("chat:message", handleNewMessage);
@@ -221,6 +240,7 @@ export default function ChatBox() {
     socket.on("presence:update", handlePresence);
     socket.on("chat:seen", handleSeen);
     socket.on("chat:message_deleted", handleMessageDeleted);
+    socket.on("chat:reaction_update", handleReactionUpdate);
 
     return () => {
       socket.off("chat:message", handleNewMessage);
@@ -228,8 +248,33 @@ export default function ChatBox() {
       socket.off("presence:update", handlePresence);
       socket.off("chat:seen", handleSeen);
       socket.off("chat:message_deleted", handleMessageDeleted);
+      socket.off("chat:reaction_update", handleReactionUpdate);
     };
   }, [socket, activeConversationId, user.id]);
+
+  useEffect(() => {
+    if (activeConversationId) {
+      chatService.markConversationSeen(activeConversationId);
+      
+      // Update local unread count immediately for instant UI feedback
+      setConversations(prev => prev.map(c => {
+        if ((c.otherUser.id || c.otherUser._id) === activeConversationId) {
+          return { ...c, unreadCount: 0 };
+        }
+        return c;
+      }));
+    }
+  }, [activeConversationId]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (convMenuRef.current && !convMenuRef.current.contains(event.target)) {
+        setShowConvMenu(null);
+      }
+    }
+    if (showConvMenu) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showConvMenu]);
 
   function scrollToBottom() {
     setTimeout(() => {
@@ -274,6 +319,7 @@ export default function ChatBox() {
     if ((!body && !selectedFile && !audioBlob) || !activeConversationId) return;
 
     try {
+      setIsSending(true);
       setDraft("");
       setIsTyping(false);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -292,25 +338,94 @@ export default function ChatBox() {
     } catch (error) {
       console.error("Failed to send message:", error);
       alert("Failed to send message. Please check your connection and try again.");
+    } finally {
+      setIsSending(false);
     }
   }
 
   async function handleDeleteMessage(messageId, action) {
     try {
-      setMessages(prev => prev.filter(m => m.id !== messageId));
+      setMessages(prev => prev.filter(m => [m.id, m._id].includes(messageId) === false));
       await chatService.deleteMessage(messageId, action);
     } catch (error) {
       console.error("Failed to delete message:", error);
     }
   }
 
-  async function handleSendHeart() {
-    if (!activeConversationId) return;
+  async function handleReactToMessage(messageId, emoji) {
     try {
+      const updatedReactions = await chatService.reactToMessage(messageId, emoji);
+      setMessages(prev => prev.map(m => {
+        if (m.id === messageId || m._id === messageId) {
+          return { ...m, reactions: updatedReactions };
+        }
+        return m;
+      }));
+    } catch (error) {
+      console.error("Failed to react to message:", error);
+    }
+  }
+
+  async function handleDeleteConversation(targetUserId) {
+    if (!targetUserId) return;
+    
+    setIsDeleting(true);
+    setDeleteError(null);
+    
+    const targetUserIdStr = String(targetUserId);
+    
+    // Optimistic Update: Backup current state
+    const previousConversations = [...conversations];
+    const previousMessages = [...messages];
+    const previousActiveId = activeConversationId;
+    
+    try {
+      // 1. Immediately update UI (Filter sidebar and clear chat if active)
+      setConversations(prev => prev.filter(c => {
+        const convUserId = String(c.otherUser.id || c.otherUser._id);
+        return convUserId !== targetUserIdStr;
+      }));
+
+      if (String(activeConversationId) === targetUserIdStr) {
+        setActiveConversationId(null);
+        setMessages([]);
+      }
+
+      // Clear URL immediately
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("userId") === targetUserIdStr) {
+         params.delete("userId");
+         window.history.replaceState({}, '', window.location.pathname + (params.toString() ? '?' + params.toString() : ''));
+      }
+
+      setDeletingConversationId(null);
+      setShowConvMenu(null);
+      
+      // 2. Perform API call in background
+      await chatService.clearConversation(targetUserIdStr);
+      
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+      // Rollback on failure
+      setConversations(previousConversations);
+      setMessages(previousMessages);
+      setActiveConversationId(previousActiveId);
+      setDeleteError("Failed to delete chat. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  async function handleSendHeart() {
+    if (!activeConversationId || isSending) return;
+    try {
+      setIsSending(true);
       const heartPayload = { body: "❤️" };
       await chatService.sendMessage(activeConversationId, heartPayload);
     } catch (error) {
       console.error("Failed to send heart:", error);
+    } finally {
+      setIsSending(false);
     }
   }
 
@@ -356,6 +471,7 @@ export default function ChatBox() {
     const noteUserId = noteUser?._id || noteUser?.id;
     
     try {
+      setIsSending(true);
       const formattedMessage = `Replied to your note: "${selectedNoteForReply.body}"\n${noteReplyContent}`;
       await chatService.sendMessage(noteUserId, { body: formattedMessage });
       
@@ -364,6 +480,8 @@ export default function ChatBox() {
       setActiveConversationId(noteUserId);
     } catch (error) {
       console.error("Failed to reply to note:", error);
+    } finally {
+      setIsSending(false);
     }
   }
 
@@ -447,6 +565,46 @@ export default function ChatBox() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (messageSearchQuery.trim()) {
+        setIsSearchingUsers(true);
+        try {
+          const results = await userService.search(messageSearchQuery);
+          setMessageSearchResults(results);
+        } catch (error) {
+          console.error("Search failed:", error);
+        } finally {
+          setIsSearchingUsers(false);
+        }
+      } else {
+        setMessageSearchResults([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [messageSearchQuery]);
+
+  function handleSelectUser(selectedUser) {
+    const existing = conversations.find(c => (c.otherUser.id || c.otherUser._id) === (selectedUser.id || selectedUser._id));
+    if (existing) {
+      setActiveConversationId(existing.otherUser.id || existing.otherUser._id);
+    } else {
+      // Create a temporary conversation entry
+      const tempConversation = {
+        id: `temp-${selectedUser.id || selectedUser._id}`,
+        otherUser: selectedUser,
+        lastMessage: { body: "Say hi!", createdAt: new Date() },
+        unreadCount: 0,
+        isTemp: true
+      };
+      setConversations(prev => [tempConversation, ...prev]);
+      setActiveConversationId(selectedUser.id || selectedUser._id);
+    }
+    setShowNewMessageModal(false);
+    setMessageSearchQuery("");
+  }
+
   if (loading) {
     return (
       <div className="chat-layout chat-layout--loading">
@@ -467,12 +625,15 @@ export default function ChatBox() {
     <section className="chat-layout">
       <div className="chat-sidebar">
         {/* Instagram Sidebar Header */}
+        {/* Instagram Sidebar Header - Simplified */}
         <div className="chat-sidebar__header">
-          <button className="chat-sidebar__account-switcher">
-            <span className="account-switcher__name">{user?.username || user?.fullName}</span>
-            <span className="material-symbols-outlined shrink-icon">expand_more</span>
-          </button>
-          <button className="icon-button outline-icon" type="button">
+          <h2 className="sidebar-title">Messages</h2>
+          <button 
+            className="icon-button outline-icon" 
+            type="button" 
+            title="New Message"
+            onClick={() => setShowNewMessageModal(true)}
+          >
             <span className="material-symbols-outlined">edit_square</span>
           </button>
         </div>
@@ -552,7 +713,7 @@ export default function ChatBox() {
             </div>
           ) : (
             filteredConversations.map((c) => (
-              <button
+              <div 
                 className={
                   c.otherUser.id === activeConversationId
                     ? "conversation-card conversation-card--active"
@@ -560,7 +721,14 @@ export default function ChatBox() {
                 }
                 key={c.otherUser.id}
                 onClick={() => setActiveConversationId(c.otherUser.id)}
-                type="button"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setActiveConversationId(c.otherUser.id);
+                  }
+                }}
               >
                 <div className="conversation-card__avatar">
                   <img alt={c.otherUser.fullName} src={getAvatarForUser(c.otherUser)} />
@@ -578,8 +746,30 @@ export default function ChatBox() {
                     <span className="preview-time">{new Date(c.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 </div>
-                {c.unreadCount > 0 && <span className="unread-dot"></span>}
-              </button>
+
+                <div className="conversation-card__extras" ref={showConvMenu === c.otherUser.id ? convMenuRef : null}>
+                   <button 
+                    className="conversation-card__more-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowConvMenu(showConvMenu === c.otherUser.id ? null : c.otherUser.id);
+                    }}
+                    type="button"
+                  >
+                    <span className="material-symbols-outlined">more_horiz</span>
+                  </button>
+                  {showConvMenu === c.otherUser.id && (
+                    <div className="conversation-card__menu animate-in">
+                      <button className="conv-menu-item danger" onClick={(e) => { e.stopPropagation(); setDeletingConversationId(c.otherUser.id); setShowConvMenu(null); }}>
+                        <span className="material-symbols-outlined">delete_forever</span>
+                        Delete Chat
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {c.unreadCount > 0 && <span className="unread-badge">{c.unreadCount}</span>}
+              </div>
             ))
           )}
         </div>
@@ -597,9 +787,7 @@ export default function ChatBox() {
                 </div>
               </div>
               <div className="chat-window__actions">
-                <button className="icon-button outline-icon" type="button">
-                  <span className="material-symbols-outlined">call</span>
-                </button>
+
                 <button 
                   className={`icon-button outline-icon ${showUserInfo ? 'active' : ''}`} 
                   type="button" 
@@ -614,19 +802,23 @@ export default function ChatBox() {
               {messages.map((message) => (
                 <MessageBubble
                   isMe={message.sender.id === user.id}
-                  key={message.id}
+                  currentUserId={user.id}
+                  key={message.id || message._id}
                   onDeleteMessage={handleDeleteMessage}
                   onReplyMessage={handleReplyMessage}
+                  onReactToMessage={handleReactToMessage}
+                  onImageClick={(url) => setViewerImage(url)}
                   message={{
-                    id: message.id,
+                    id: message.id || message._id,
                     text: message.body,
                     time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     avatar: getAvatarForUser(message.sender),
                     seen: !!message.seenAt,
                     attachments: message.attachments,
-                    senderId: message.sender.id,
+                    senderId: message.sender.id || message.sender._id,
                     senderUsername: message.sender.username,
-                    replyTo: message.replyTo
+                    replyTo: message.replyTo,
+                    reactions: message.reactions || []
                   }}
                 />
               ))}
@@ -716,17 +908,34 @@ export default function ChatBox() {
                   
                   <input
                     onChange={handleDraftChange}
-                    placeholder="Message..."
+                    placeholder={isSending ? "Sending..." : "Message..."}
                     type="text"
                     value={draft}
+                    disabled={isSending}
+                    style={{ opacity: isSending ? 0.7 : 1 }}
                   />
                   
                   <div className="composer-actions-right">
                     {draft.length > 0 || selectedFile || audioBlob ? (
-                      <button className="composer-send-btn" type="submit">Send</button>
+                      <button 
+                        className="composer-send-btn" 
+                        type="submit" 
+                        disabled={isSending}
+                      >
+                         {isSending ? (
+                           <span className="material-symbols-outlined spin" style={{ fontSize: '18px' }}>progress_activity</span>
+                         ) : (
+                           "Send"
+                         )}
+                      </button>
                     ) : (
                       <>
-                        <button className="composer-icon" type="button" onClick={startRecording}>
+                        <button 
+                          className="composer-icon" 
+                          type="button" 
+                          onClick={startRecording}
+                          disabled={isSending}
+                        >
                           <span className="material-symbols-outlined">mic</span>
                         </button>
                         
@@ -741,12 +950,22 @@ export default function ChatBox() {
                           className="composer-icon" 
                           type="button" 
                           onClick={() => fileInputRef.current.click()}
+                          disabled={isSending}
                         >
                           <span className="material-symbols-outlined">image</span>
                         </button>
                         
-                        <button className="composer-icon" type="button" onClick={handleSendHeart}>
-                          <span className="material-symbols-outlined">favorite</span>
+                        <button 
+                          className="composer-icon" 
+                          type="button" 
+                          onClick={handleSendHeart}
+                          disabled={isSending}
+                        >
+                           {isSending ? (
+                             <span className="material-symbols-outlined spin" style={{ fontSize: '18px' }}>progress_activity</span>
+                           ) : (
+                             <span className="material-symbols-outlined">favorite</span>
+                           )}
                         </button>
                       </>
                     )}
@@ -945,6 +1164,123 @@ export default function ChatBox() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {showNewMessageModal && (
+        <div className="note-modal-overlay" onClick={() => setShowNewMessageModal(false)}>
+          <div className="new-message-modal" onClick={e => e.stopPropagation()}>
+            <div className="new-message-modal__header">
+              <button className="close-btn" onClick={() => setShowNewMessageModal(false)}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+              <h3>New Message</h3>
+              <button 
+                className="btn-next-ig" 
+                disabled={!activeConversationId}
+                onClick={() => setShowNewMessageModal(false)}
+              >
+                Chat
+              </button>
+            </div>
+            
+            <div className="new-message-modal__search">
+              <span>To:</span>
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                autoFocus
+                value={messageSearchQuery}
+                onChange={(e) => setMessageSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="new-message-modal__results scroll-y">
+              {isSearchingUsers ? (
+                <div className="results-loading">Searching...</div>
+              ) : messageSearchResults.length > 0 ? (
+                messageSearchResults.map(u => (
+                  <button key={u.id} className="search-result-item" onClick={() => handleSelectUser(u)}>
+                    <img src={getAvatarForUser(u)} alt={u.fullName} />
+                    <div className="result-item__info">
+                      <span className="username">{u.username}</span>
+                      <span className="fullName">{u.fullName}</span>
+                    </div>
+                    {(activeConversationId === (u.id || u._id)) && (
+                      <span className="material-symbols-outlined check-icon">check_circle</span>
+                    )}
+                  </button>
+                ))
+              ) : messageSearchQuery ? (
+                <div className="results-empty">No account found.</div>
+              ) : (
+                <div className="results-placeholder">No recent searches.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletingConversationId && (
+        <div className="custom-modal-overlay modal-animate-in">
+          <div className="custom-modal-card">
+            <h3>Delete Chat?</h3>
+            <p>If you delete this chat history, it will be permanently removed for you. The other person can still see it.</p>
+            <div className="custom-modal-actions">
+              <button className="modal-btn outline" onClick={() => setDeletingConversationId(null)}>Cancel</button>
+              <button className="modal-btn danger" onClick={() => handleDeleteConversation(deletingConversationId)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeleting && (
+        <div className="custom-modal-overlay modal-animate-in" style={{ zIndex: 3000 }}>
+          <div className="custom-modal-card deletion-loading">
+            {deleteError ? (
+              <>
+                <span className="material-symbols-outlined danger-icon" style={{ fontSize: '48px', color: '#ed4956' }}>error</span>
+                <h3>Error</h3>
+                <p>{deleteError}</p>
+                <div className="custom-modal-actions" style={{ marginTop: '16px', width: '100%' }}>
+                  <button className="modal-btn outline" onClick={() => { setIsDeleting(false); setDeleteError(null); }}>Close</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined spin">progress_activity</span>
+                <h3>Deleting chat...</h3>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {viewerImage && (
+        <div className="image-viewer-overlay viewer-animate-in" onClick={() => setViewerImage(null)}>
+          <div className="viewer-controls" onClick={e => e.stopPropagation()}>
+            <button className="viewer-btn" onClick={() => {
+              const link = document.createElement("a");
+              link.href = viewerImage;
+              link.target = "_blank";
+              link.download = `chat_image_${Date.now()}.jpg`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}>
+              <span className="material-symbols-outlined">download</span>
+              Save
+            </button>
+            <button className="viewer-btn" onClick={() => setViewerImage(null)}>
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+          <img 
+            src={viewerImage} 
+            alt="Full screen viewer" 
+            className="viewer-main-image" 
+            onClick={e => e.stopPropagation()} 
+          />
         </div>
       )}
     </section>

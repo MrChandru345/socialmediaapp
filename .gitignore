@@ -18,3 +18,9 @@ Thumbs.db
 
 .idea/
 .vscode/
+
+# Project Documentation & Reference
+BACKEND FILE STRUCTURE.md
+FRONTEND FILE STRUCTURE.md
+SKILL.md
+UI/

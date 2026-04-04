@@ -1,25 +1,51 @@
 import { useState, useRef, useEffect } from "react";
 
-export default function MessageBubble({ message, isMe, onDeleteMessage, onReplyMessage }) {
+export default function MessageBubble({ 
+  message, 
+  isMe, 
+  onDeleteMessage, 
+  onReplyMessage,
+  onReactToMessage,
+  onImageClick,
+  currentUserId 
+}) {
   const [showMenu, setShowMenu] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showMoreEmojis, setShowMoreEmojis] = useState(false);
+  const [reactionToManage, setReactionToManage] = useState(null);
+  const reactionPickerRef = useRef(null);
+  const reactionManageRef = useRef(null);
   const menuRef = useRef(null);
   const incoming = !isMe;
   const hasAttachments = message.attachments && message.attachments.length > 0;
   const hasText = !!message.text;
+
+  const quickEmojis = ["❤️", "😂", "😮", "😢", "🔥", "👍"];
 
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setShowMenu(false);
       }
+      if (reactionPickerRef.current && !reactionPickerRef.current.contains(event.target)) {
+        setShowReactionPicker(false);
+      }
+      if (reactionManageRef.current && !reactionManageRef.current.contains(event.target)) {
+        setReactionToManage(null);
+      }
     }
-    if (showMenu) document.addEventListener("mousedown", handleClickOutside);
+    if (showMenu || showReactionPicker || reactionToManage) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showMenu]);
+  }, [showMenu, showReactionPicker, reactionToManage]);
 
   const handleAction = (action) => {
     setShowMenu(false);
     if (onDeleteMessage) onDeleteMessage(message.id, action);
+  };
+
+  const handleReact = (emoji) => {
+    setShowReactionPicker(false);
+    if (onReactToMessage) onReactToMessage(message.id, emoji);
   };
 
   const handleReply = () => {
@@ -60,7 +86,16 @@ export default function MessageBubble({ message, isMe, onDeleteMessage, onReplyM
               } else if (hasVideoType) {
                 return <video key={index} src={url} controls className="message-attachment-media" />;
               } else if (hasImageType) {
-                return <img key={index} src={url} alt="Attachment" className="message-attachment-media" />;
+                return (
+                  <img 
+                    key={index} 
+                    src={url} 
+                    alt="Attachment" 
+                    className="message-attachment-media" 
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => onImageClick && onImageClick(url)}
+                  />
+                );
               } else {
                 // Fallback for document or unknown
                 return (
@@ -88,17 +123,154 @@ export default function MessageBubble({ message, isMe, onDeleteMessage, onReplyM
         )}
 
         {hasText && (
-          <div className={`message-bubble ${incoming ? "message-bubble--incoming" : "message-bubble--outgoing"}`}>
-            <p>{message.text}</p>
+          <div className="message-bubble-wrapper" style={{ position: 'relative' }}>
+            <div className={`message-bubble ${incoming ? "message-bubble--incoming" : "message-bubble--outgoing"}`}>
+              <p>{message.text}</p>
+            </div>
+            
+            {message.reactions && message.reactions.length > 0 && (
+              <div className={`message-reactions-pill ${incoming ? "message-reactions-pill--incoming" : "message-reactions-pill--outgoing"}`}>
+                {Object.entries(
+                  message.reactions.reduce((acc, r) => {
+                    acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                    return acc;
+                  }, {})
+                ).map(([emoji, count]) => {
+                  const myReaction = message.reactions.find(r => r.emoji === emoji && (r.user.id === currentUserId || r.user === currentUserId));
+                  
+                  return (
+                    <div key={emoji} className="reaction-item-container" style={{ position: 'relative' }}>
+                      <span 
+                        className={`reaction-item ${myReaction ? 'reaction-item--mine' : ''}`} 
+                        title={`${count} reaction(s)`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReactionToManage(emoji);
+                        }}
+                      >
+                        {emoji} {count > 1 && <span className="reaction-count">{count}</span>}
+                      </span>
+
+                      {reactionToManage === emoji && (
+                        <div className="reaction-manage-popup animate-in" ref={reactionManageRef}>
+                          <div className="reaction-popup-header">
+                            <span className="reaction-popup-emoji">{emoji}</span>
+                            <span className="reaction-popup-info">{count} Reactions</span>
+                          </div>
+                          {myReaction && (
+                            <button 
+                              className="reaction-remove-btn" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReact(emoji);
+                                setReactionToManage(null);
+                              }}
+                            >
+                              <span className="material-symbols-outlined">delete</span>
+                              <span>Remove Reaction</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
+
+        {/* If no text but has attachments, put reactions on attachments */}
+        {!hasText && hasAttachments && message.reactions && message.reactions.length > 0 && (
+          <div className="message-reactions-pill--on-media" style={{ position: 'relative', marginTop: '-10px' }}>
+             <div className={`message-reactions-pill ${incoming ? "message-reactions-pill--incoming" : "message-reactions-pill--outgoing"}`}>
+                {Object.entries(
+                  message.reactions.reduce((acc, r) => {
+                    acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                    return acc;
+                  }, {})
+                ).map(([emoji, count]) => {
+                  const myReaction = message.reactions.find(r => r.emoji === emoji && (r.user.id === currentUserId || r.user === currentUserId));
+
+                  return (
+                    <div key={emoji} className="reaction-item-container" style={{ position: 'relative' }}>
+                      <span 
+                        className={`reaction-item ${myReaction ? 'reaction-item--mine' : ''}`}
+                        title={`${count} reaction(s)`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReactionToManage(emoji);
+                        }}
+                      >
+                        {emoji} {count > 1 && <span className="reaction-count">{count}</span>}
+                      </span>
+                      
+                      {reactionToManage === emoji && (
+                        <div className="reaction-manage-popup animate-in" ref={reactionManageRef}>
+                          <div className="reaction-popup-header">
+                            <span className="reaction-popup-emoji">{emoji}</span>
+                            <span className="reaction-popup-info">{count} Reactions</span>
+                          </div>
+                          {myReaction && (
+                            <button 
+                              className="reaction-remove-btn" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReact(emoji);
+                                setReactionToManage(null);
+                              }}
+                            >
+                              <span className="material-symbols-outlined">delete</span>
+                              <span>Remove Reaction</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+          </div>
+        )}
+
         <span className="message-timestamp">
           {message.time} {isMe && message.seen && " • Seen"}
         </span>
       </div>
 
       <div className={`message-actions ${incoming ? "message-actions--incoming" : "message-actions--outgoing"}`} ref={menuRef}>
-        <button className="message-action-btn"><span className="material-symbols-outlined">sentiment_satisfied</span></button>
+        <div className="reaction-picker-container" ref={reactionPickerRef}>
+          <button 
+            className={`message-action-btn ${showReactionPicker ? 'active' : ''}`}
+            onClick={() => setShowReactionPicker(!showReactionPicker)}
+          >
+            <span className="material-symbols-outlined">sentiment_satisfied</span>
+          </button>
+
+          {showReactionPicker && (
+            <div className={`reaction-picker-overlay animate-in ${showMoreEmojis ? 'expanded' : ''}`}>
+              {quickEmojis.map(emoji => (
+                <button key={emoji} className="reaction-emoji-btn" onClick={() => handleReact(emoji)}>
+                  {emoji}
+                </button>
+              ))}
+              
+              {!showMoreEmojis && (
+                <button className="reaction-emoji-btn plus-btn" onClick={(e) => { e.stopPropagation(); setShowMoreEmojis(true); }}>
+                  <span className="material-symbols-outlined">add</span>
+                </button>
+              )}
+
+              {showMoreEmojis && (
+                ["🙌", "👏", "✨", "💯", "🤝"].map(emoji => (
+                  <button key={emoji} className="reaction-emoji-btn" onClick={() => handleReact(emoji)}>
+                    {emoji}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
         <button className="message-action-btn" onClick={handleReply}><span className="material-symbols-outlined">reply</span></button>
         <button className="message-action-btn" onClick={() => setShowMenu(prev => !prev)}>
           <span className="material-symbols-outlined">more_vert</span>

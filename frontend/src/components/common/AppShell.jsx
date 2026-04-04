@@ -4,6 +4,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useSocketContext } from "../../context/SocketContext";
 import { notificationService } from "../../services/notificationService";
+import { chatService } from "../../services/chatService";
 import { getApiErrorMessage, resolveAvatar } from "../../utils/helpers";
 import NotificationBell from "../notification/NotificationBell";
 import NotificationCenter from "../notification/NotificationCenter";
@@ -39,6 +40,7 @@ export default function AppShell({ children }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotificationState);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
   useEffect(() => {
@@ -60,7 +62,18 @@ export default function AppShell({ children }) {
 
   useEffect(() => {
     loadNotifications();
-  }, []);
+    loadUnreadChatCount();
+  }, [user]);
+
+  async function loadUnreadChatCount() {
+    if (!user) return;
+    try {
+      const count = await chatService.getUnreadCount();
+      setUnreadChatCount(count);
+    } catch (err) {
+      console.error("Failed to load chat unread count", err);
+    }
+  }
 
   useEffect(() => {
     if (!socket) {
@@ -83,10 +96,28 @@ export default function AppShell({ children }) {
 
     socket.on("notification:new", handleNotification);
 
+    function handleChatMessage(message) {
+      // If we're not currently looking at the chat for this sender, increment unread count
+      // This is a simple logic; a more precise one would check if we're on /chat exactly
+      if (message.receiver.id === user?.id || message.receiver._id === user?.id) {
+        setUnreadChatCount(prev => prev + 1);
+      }
+    }
+
+    function handleChatSeen() {
+      // Re-fetch count when something is marked as seen
+      loadUnreadChatCount();
+    }
+
+    socket.on("chat:message", handleChatMessage);
+    socket.on("chat:seen", handleChatSeen);
+
     return () => {
       socket.off("notification:new", handleNotification);
+      socket.off("chat:message", handleChatMessage);
+      socket.off("chat:seen", handleChatSeen);
     };
-  }, [socket]);
+  }, [socket, user?.id]);
 
   function openPostComposer() {
     navigate("/", {
@@ -227,7 +258,14 @@ export default function AppShell({ children }) {
                 }
                 to={item.to}
               >
-                <span className="material-symbols-outlined">{item.icon}</span>
+                <div style={{ position: 'relative', display: 'flex' }}>
+                  <span className="material-symbols-outlined">{item.icon}</span>
+                  {item.label === "Messages" && unreadChatCount > 0 && (
+                    <span className="sidebar-badge">
+                      {unreadChatCount > 9 ? '9+' : unreadChatCount}
+                    </span>
+                  )}
+                </div>
                 <span>{item.label}</span>
               </NavLink>
             ))}
@@ -280,8 +318,13 @@ export default function AppShell({ children }) {
             </div>
             <div className="topbar-tools">
               <NotificationBell count={notifications.unreadCount} onClick={handleOpenNotifications} />
-              <button className="icon-button" onClick={() => navigate('/chat')} type="button">
+              <button className="icon-button" onClick={() => navigate('/chat')} type="button" style={{ position: 'relative' }}>
                 <span className="material-symbols-outlined">near_me</span>
+                {unreadChatCount > 0 && (
+                  <span className="sidebar-badge sidebar-badge--topbar">
+                    {unreadChatCount > 9 ? '9+' : unreadChatCount}
+                  </span>
+                )}
               </button>
             </div>
           </header>
