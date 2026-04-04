@@ -343,8 +343,7 @@ export function resolveAvatar(name, avatarUrl) {
     return avatarUrl;
   }
 
-  const seed = encodeURIComponent(name || "Curator");
-  return `https://api.dicebear.com/9.x/notionists/svg?seed=${seed}&backgroundType=gradientLinear`;
+  return "/nanobanana.png";
 }
 
 export function withDelay(value, ms = 350) {

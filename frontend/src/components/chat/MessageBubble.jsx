@@ -1,18 +1,206 @@
-export default function MessageBubble({ message, isMe }) {
+import { useState, useRef, useEffect } from "react";
+
+export default function MessageBubble({ message, isMe, onDeleteMessage, onReplyMessage }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
   const incoming = !isMe;
+  const hasAttachments = message.attachments && message.attachments.length > 0;
+  const hasText = !!message.text;
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    }
+    if (showMenu) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showMenu]);
+
+  const handleAction = (action) => {
+    setShowMenu(false);
+    if (onDeleteMessage) onDeleteMessage(message.id, action);
+  };
+
+  const handleReply = () => {
+    if (onReplyMessage) {
+      onReplyMessage({
+        id: message.id,
+        text: message.text || (hasAttachments ? "Shared Media" : ""),
+        sender: message.senderUsername
+      });
+    }
+  };
 
   return (
     <div className={`message-row ${incoming ? "message-row--incoming" : "message-row--outgoing"}`}>
-      {incoming ? <img alt="Conversation avatar" className="message-row__avatar" src={message.avatar} /> : null}
-      <div className={`message-bubble ${incoming ? "message-bubble--incoming" : "message-bubble--outgoing"}`}>
-        <p>{message.text}</p>
-        {message.attachment ? <img alt="Shared media" className="message-bubble__attachment" src={message.attachment} /> : null}
-        <div className="message-bubble__footer">
-          <span>{message.time}</span>
-          {isMe && message.seen && (
-            <span className="material-symbols-outlined seen-icon">done_all</span>
-          )}
+      {incoming && <img alt="User avatar" className="message-row__avatar" src={message.avatar} />}
+      
+      <div className="message-content-wrapper">
+        {hasAttachments && (
+          <div className={`message-attachments ${incoming ? "message-attachments--incoming" : "message-attachments--outgoing"}`}>
+            {message.attachments.map((attachment, index) => {
+              const url = typeof attachment === "string" ? attachment : (attachment?.url || "");
+              const type = typeof attachment === "object" ? attachment?.type : null;
+
+              // Priority 1: Backend provided type
+              // Priority 2: Extension matching
+              const hasAudioType = type === "audio" || url.match(/\.(mp3|wav|m4a|ogg|webm)$/i);
+              const hasVideoType = type === "video" || url.match(/\.(mp4|webm|ogg)$/i);
+              const hasImageType = type === "image" || url.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+              
+              if (hasAudioType) {
+                return (
+                  <VoicePlayer 
+                    key={index}
+                    url={url} 
+                    incoming={incoming} 
+                  />
+                );
+              } else if (hasVideoType) {
+                return <video key={index} src={url} controls className="message-attachment-media" />;
+              } else if (hasImageType) {
+                return <img key={index} src={url} alt="Attachment" className="message-attachment-media" />;
+              } else {
+                // Fallback for document or unknown
+                return (
+                  <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="message-attachment-doc">
+                    <span className="material-symbols-outlined">description</span>
+                    <span>Document</span>
+                  </a>
+                );
+              }
+            })}
+          </div>
+        )}
+
+        {message.replyTo && typeof message.replyTo === "object" && (
+          <div className={`message-reply-preview ${incoming ? "message-reply-preview--incoming" : "message-reply-preview--outgoing"}`}>
+            <span className="reply-preview-header">
+              {incoming 
+                ? `${message.senderUsername} replied to ${message.replyTo.sender.username === message.senderUsername ? "themselves" : "you"}` 
+                : `You replied to ${message.replyTo.sender.username}`}
+            </span>
+            <div className="reply-preview-bubble">
+              <p>{message.replyTo.body || "Attachment"}</p>
+            </div>
+          </div>
+        )}
+
+        {hasText && (
+          <div className={`message-bubble ${incoming ? "message-bubble--incoming" : "message-bubble--outgoing"}`}>
+            <p>{message.text}</p>
+          </div>
+        )}
+        <span className="message-timestamp">
+          {message.time} {isMe && message.seen && " • Seen"}
+        </span>
+      </div>
+
+      <div className={`message-actions ${incoming ? "message-actions--incoming" : "message-actions--outgoing"}`} ref={menuRef}>
+        <button className="message-action-btn"><span className="material-symbols-outlined">sentiment_satisfied</span></button>
+        <button className="message-action-btn" onClick={handleReply}><span className="material-symbols-outlined">reply</span></button>
+        <button className="message-action-btn" onClick={() => setShowMenu(prev => !prev)}>
+          <span className="material-symbols-outlined">more_vert</span>
+        </button>
+
+        {showMenu && (
+          <div className="message-actions-menu">
+            {isMe && <button className="danger" onClick={() => handleAction("unsend")}>Unsend</button>}
+            <button className="danger" onClick={() => handleAction("delete_for_me")}>Delete for me</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VoicePlayer({ url, incoming }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef(null);
+
+  const togglePlay = () => {
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const onLoadedMetadata = () => {
+    setDuration(audioRef.current.duration);
+  };
+
+  const onTimeUpdate = () => {
+    setCurrentTime(audioRef.current.currentTime);
+  };
+
+  const onEnded = () => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+  };
+
+  const formatTime = (secs) => {
+    if (!secs) return "0:00";
+    const mins = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${mins}:${s.toString().padStart(2, "0")}`;
+  };
+
+  // Generate a bunch of bars for the waveform
+  const barCount = 35;
+  const bars = Array.from({ length: barCount }, (_, i) => {
+    // Generate some "random" but stable heights for the waveform
+    const height = 10 + (Math.sin(i * 0.5) * 10) + (Math.cos(i * 0.8) * 5);
+    const progress = (currentTime / duration) * barCount;
+    const isActive = i < progress;
+    
+    return (
+      <div 
+        key={i} 
+        className="waveform-bar" 
+        style={{ 
+          height: `${Math.max(4, height)}px`,
+          opacity: isActive ? 1 : 0.4
+        }} 
+      />
+    );
+  });
+
+  return (
+    <div className={`message-bubble message-bubble--voice ${incoming ? "message-bubble--incoming" : "message-bubble--outgoing"}`}>
+      <div className="voice-player-container">
+        <div className="voice-bubble-content">
+          <button className="play-button-circular" onClick={togglePlay}>
+            <span className="material-symbols-outlined">
+              {isPlaying ? "pause" : "play_arrow"}
+            </span>
+          </button>
+          
+          <div className="waveform-simulation">
+            {bars}
+          </div>
+          
+          <div className="duration-badge-pill">
+            {isPlaying ? formatTime(currentTime) : formatTime(duration || 0)}
+          </div>
         </div>
+        
+        <div className="view-transcription-link">
+          View transcription
+        </div>
+
+        <audio 
+          ref={audioRef}
+          src={url}
+          onLoadedMetadata={onLoadedMetadata}
+          onTimeUpdate={onTimeUpdate}
+          onEnded={onEnded}
+          style={{ display: "none" }}
+        />
       </div>
     </div>
   );

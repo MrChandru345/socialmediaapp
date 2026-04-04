@@ -49,5 +49,13 @@ export const userService = {
     });
 
     return response.data.data;
+  },
+  async blockUser(id) {
+    const response = await api.post(`/users/${id}/block`);
+    return response.data.data;
+  },
+  async reportUser(payload) {
+    const response = await api.post("/users/report", payload);
+    return response.data.data;
   }
 };

@@ -16,6 +16,7 @@ export const chatService = {
     if (payload.file || (payload.attachments && payload.attachments.length > 0)) {
       const formData = new FormData();
       formData.append("body", payload.body || "");
+      if (payload.replyTo) formData.append("replyTo", payload.replyTo);
       
       const files = payload.attachments || (payload.file ? [payload.file] : []);
       files.forEach((file) => formData.append("attachments", file));
@@ -25,13 +26,36 @@ export const chatService = {
     }
 
     const response = await api.post(`/chat/${userId}`, {
-      body: payload.body || ""
+      body: payload.body || "",
+      replyTo: payload.replyTo || null
     });
     return response.data.data;
   },
   
   async markConversationSeen(userId) {
     const response = await api.patch(`/chat/${userId}/seen`);
+    return response.data.data;
+  },
+
+  async deleteMessage(messageId, action) {
+    const response = await api.delete(`/chat/message/${messageId}`, {
+      data: { action }
+    });
+    return response.data.data;
+  },
+
+  async getNotes() {
+    const response = await api.get("/chat/notes/all");
+    return response.data.data;
+  },
+
+  async createNote(body) {
+    const response = await api.post("/chat/notes", { body });
+    return response.data.data;
+  },
+
+  async deleteNote(noteId) {
+    const response = await api.delete(`/chat/notes/${noteId}`);
     return response.data.data;
   }
 };

@@ -12,19 +12,20 @@ export function getStoredToken() {
   return window.localStorage.getItem(TOKEN_KEY);
 }
 
+api.interceptors.request.use((config) => {
+  const token = getStoredToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export function setStoredToken(token) {
   window.localStorage.setItem(TOKEN_KEY, token);
-  api.defaults.headers.common.Authorization = `Bearer ${token}`;
 }
 
 export function clearStoredToken() {
   window.localStorage.removeItem(TOKEN_KEY);
-  delete api.defaults.headers.common.Authorization;
-}
-
-const bootstrapToken = getStoredToken();
-if (bootstrapToken) {
-  api.defaults.headers.common.Authorization = `Bearer ${bootstrapToken}`;
 }
 
 export default api;

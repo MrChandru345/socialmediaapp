@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { isCloudinaryConfigured, uploadBuffer } = require("../../config/cloudinary");
 const {
   AppError,
   buildRoomId,
@@ -10,13 +11,11 @@ const { emitUserEvent, getOnlineUsers } = require("./socket");
 const { createNotification } = require("../notification/notification.service");
 const User = require("../user/user.model");
 const Message = require("./message.model");
+const Note = require("./note.model");
 
 function formatChatUser(user) {
   const sanitized = sanitizeUser(user);
-
-  if (!sanitized) {
-    return null;
-  }
+  if (!sanitized) return null;
 
   return {
     id: sanitized.id,
@@ -25,25 +24,71 @@ function formatChatUser(user) {
     fullName: sanitized.fullName,
     avatar: sanitized.avatar,
     role: sanitized.role,
-    isOnline: sanitized.isOnline,
-    lastSeen: sanitized.lastSeen
+    isOnline: Boolean(sanitized.isOnline),
+    lastSeen: sanitized.lastSeen,
+    createdAt: sanitized.createdAt
   };
 }
 
+async function uploadMediaFiles(files, folder) {
+  if (!files?.length) {
+    return [];
+  }
+
+  if (!isCloudinaryConfigured) {
+    throw new AppError(400, "Cloudinary must be configured before uploading files");
+  }
+
+  return Promise.all(
+    files.map(async (file) => {
+      // Chrome/Firefox often use video/webm for audio-only recordings
+      const isAudio = file.mimetype.startsWith("audio/") || 
+                     (file.mimetype === "video/webm" && file.originalname.includes("voice-"));
+      const isVideo = file.mimetype.startsWith("video/") && !isAudio;
+      
+      const resourceType = (isVideo || isAudio) ? "video" : "image";
+      
+      const result = await uploadBuffer(file.buffer, {
+        folder,
+        resource_type: resourceType,
+        public_id: `file_${Date.now()}`
+      });
+
+      return {
+        url: result.secure_url,
+        publicId: result.public_id,
+        type: isAudio ? "audio" : resourceType
+      };
+    })
+  );
+}
+
+
 function formatMessage(message) {
-  return {
+  const formatted = {
     ...message,
     id: String(message._id),
     sender: formatChatUser(message.sender),
     receiver: formatChatUser(message.receiver)
   };
+
+  if (message.replyTo && typeof message.replyTo === "object" && message.replyTo._id) {
+    formatted.replyTo = {
+      id: String(message.replyTo._id),
+      body: message.replyTo.body,
+      sender: formatChatUser(message.replyTo.sender)
+    };
+  }
+
+  return formatted;
 }
 
 async function listConversations(userId) {
   const conversations = await Message.aggregate([
     {
       $match: {
-        participants: new mongoose.Types.ObjectId(userId)
+        participants: new mongoose.Types.ObjectId(userId),
+        deletedFor: { $ne: new mongoose.Types.ObjectId(userId) }
       }
     },
     {
@@ -118,12 +163,19 @@ async function getConversation(userId, withUserId, query) {
   const { limit, skip } = parsePagination(query);
   const roomId = buildRoomId(userId, withUserId);
 
-  const messages = await Message.find({ roomId })
+  const messages = await Message.find({ 
+    roomId,
+    deletedFor: { $ne: userId }
+  })
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
     .populate("sender", "username fullName avatar role isOnline lastSeen")
     .populate("receiver", "username fullName avatar role isOnline lastSeen")
+    .populate({
+      path: "replyTo",
+      populate: { path: "sender", select: "username fullName avatar" }
+    })
     .lean();
 
   return {
@@ -131,7 +183,7 @@ async function getConversation(userId, withUserId, query) {
   };
 }
 
-async function sendMessage(userId, receiverId, payload) {
+async function sendMessage(userId, receiverId, payload, files) {
   if (String(userId) === String(receiverId)) {
     throw new AppError(400, "You cannot send a direct message to yourself");
   }
@@ -143,11 +195,15 @@ async function sendMessage(userId, receiverId, payload) {
   }
 
   const body = payload.body?.trim() || "";
-  const attachments = normalizeMediaInput(payload.attachments);
+  const payloadMedia = normalizeMediaInput(payload.attachments);
+  const uploadedMedia = await uploadMediaFiles(files, "socialmediaapp/chat");
+  const attachments = [...payloadMedia, ...uploadedMedia];
 
   if (!body && attachments.length === 0) {
     throw new AppError(400, "A message body or attachment is required");
   }
+
+  const replyTo = payload.replyTo || null;
 
   const message = await Message.create({
     roomId: buildRoomId(userId, receiverId),
@@ -155,12 +211,17 @@ async function sendMessage(userId, receiverId, payload) {
     sender: userId,
     receiver: receiverId,
     body,
-    attachments
+    attachments,
+    replyTo
   });
 
   const populatedMessage = await Message.findById(message._id)
     .populate("sender", "username fullName avatar role isOnline lastSeen")
     .populate("receiver", "username fullName avatar role isOnline lastSeen")
+    .populate({
+      path: "replyTo",
+      populate: { path: "sender", select: "username fullName avatar" }
+    })
     .lean();
 
   const formattedMessage = formatMessage(populatedMessage);
@@ -204,9 +265,82 @@ async function markConversationSeen(userId, withUserId) {
   };
 }
 
+async function deleteMessage(userId, messageId, action) {
+  const message = await Message.findById(messageId);
+  
+  if (!message) {
+    throw new AppError(404, "Message not found");
+  }
+
+  const isParticipant = message.participants.some(p => String(p) === String(userId));
+  if (!isParticipant) {
+    throw new AppError(403, "Not authorized to modify this message");
+  }
+
+  if (action === "delete_for_me") {
+    if (!message.deletedFor.includes(userId)) {
+      message.deletedFor.push(userId);
+      await message.save();
+    }
+    return { success: true, messageId: String(message._id), action: "delete_for_me" };
+  } else if (action === "unsend" || action === "delete_for_everyone") {
+    if (String(message.sender) !== String(userId)) {
+      throw new AppError(403, "You can only unsend your own messages");
+    }
+    
+    await Message.deleteOne({ _id: messageId });
+    
+    const receiverId = String(message.receiver) === String(userId) ? String(message.sender) : String(message.receiver);
+    emitUserEvent(receiverId, "chat:message_deleted", { messageId: String(message._id), roomId: message.roomId });
+    emitUserEvent(userId, "chat:message_deleted", { messageId: String(message._id), roomId: message.roomId });
+
+    return { success: true, messageId: String(message._id), action: "unsend" };
+  } else {
+    throw new AppError(400, "Invalid delete action");
+  }
+}
+
+async function createNote(userId, body) {
+  // Upsert note for this user (one user, one note)
+  await Note.findOneAndUpdate(
+    { user: userId },
+    { body, createdAt: new Date() },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  
+  // Now fetch and populate to ensure a clean result
+  return await Note.findOne({ user: userId }).populate("user", "username fullName avatar");
+}
+
+async function getActiveNotes(userId) {
+  // Get all relevant notes for users in conversations
+  const conversations = await Message.find({ participants: userId })
+    .distinct("participants");
+  
+  const relevantUserIds = conversations.filter(id => String(id) !== String(userId));
+  relevantUserIds.push(userId);
+
+  return await Note.find({ user: { $in: relevantUserIds } })
+    .populate("user", "username fullName avatar")
+    .sort({ createdAt: -1 });
+}
+
+async function deleteNote(userId, noteId) {
+  const note = await Note.findOne({ _id: noteId, user: userId });
+  if (!note) throw new AppError(404, "Note not found");
+  
+  await note.deleteOne();
+  return { success: true };
+}
+
 module.exports = {
+  deleteMessage,
   getConversation,
   listConversations,
   markConversationSeen,
-  sendMessage
+  sendMessage,
+  createNote,
+  getActiveNotes,
+  deleteNote,
+  uploadMediaFiles
 };

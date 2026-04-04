@@ -235,11 +235,41 @@ async function getFollowing(userId) {
   }));
 }
 
+async function blockUser(userId, targetUserId) {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, "User not found");
+
+  const alreadyBlocked = user.blockedUsers.includes(targetUserId);
+
+  if (alreadyBlocked) {
+    user.blockedUsers = user.blockedUsers.filter(id => String(id) !== String(targetUserId));
+  } else {
+    user.blockedUsers.push(targetUserId);
+  }
+
+  await user.save();
+  return { blocked: !alreadyBlocked };
+}
+
+async function reportUser(reporterId, reportedUserId, reason) {
+  const Report = require("./report.model");
+  
+  const report = await Report.create({
+    reporter: reporterId,
+    reportedUser: reportedUserId,
+    reason
+  });
+
+  return report;
+}
+
 module.exports = {
   getProfile,
   getProfilePosts,
   getSuggestions,
   searchUsers,
   updateProfile,
-  getFollowing
+  getFollowing,
+  blockUser,
+  reportUser
 };
