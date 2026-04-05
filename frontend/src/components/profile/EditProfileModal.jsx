@@ -12,7 +12,8 @@ function buildFormState(profile) {
     file: null,
     fullName: profile?.fullName || "",
     location: profile?.location || "",
-    website: profile?.website || ""
+    website: profile?.website || "",
+    username: profile?.username || ""
   };
 }
 
@@ -94,15 +95,7 @@ export default function EditProfileModal({ onClose, onUpdated, open, profile }) 
           </div>
         </div>
 
-        <div className="edit-profile-field">
-          <label>Website</label>
-          <input
-            onChange={(event) => setForm((current) => ({ ...current, website: event.target.value }))}
-            placeholder="Website"
-            type="url"
-            value={form.website}
-          />
-        </div>
+
 
         <div className="edit-profile-field">
           <label>Bio</label>
@@ -121,6 +114,16 @@ export default function EditProfileModal({ onClose, onUpdated, open, profile }) 
             placeholder="Name"
             type="text"
             value={form.fullName}
+          />
+        </div>
+
+        <div className="edit-profile-field">
+          <label>Username</label>
+          <input
+            onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))}
+            placeholder="Username"
+            type="text"
+            value={form.username}
           />
         </div>
 

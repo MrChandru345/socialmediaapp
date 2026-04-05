@@ -7,7 +7,9 @@ const {
   updateProfile,
   getFollowing,
   blockUser,
-  reportUser
+  reportUser,
+  getUserFollowers,
+  getUserFollowing
 } = require("./user.service");
 
 const getUserProfile = asyncHandler(async (req, res) => {
@@ -50,6 +52,16 @@ const reportAnAccount = asyncHandler(async (req, res) => {
   res.json({ success: true, data: report });
 });
 
+const listUserFollowers = asyncHandler(async (req, res) => {
+  const users = await getUserFollowers(req.user?._id, req.params.id);
+  res.json({ success: true, data: users });
+});
+
+const listUserFollowing = asyncHandler(async (req, res) => {
+  const users = await getUserFollowing(req.user?._id, req.params.id);
+  res.json({ success: true, data: users });
+});
+
 module.exports = {
   getUserProfile,
   getUserProfilePosts,
@@ -58,5 +70,7 @@ module.exports = {
   updateMyProfile,
   getMyFollowing,
   toggleBlockUser,
-  reportAnAccount
+  reportAnAccount,
+  listUserFollowers,
+  listUserFollowing
 };

@@ -138,6 +138,15 @@ async function updateProfile(userId, payload, file) {
     throw new AppError(404, "User not found");
   }
 
+  if (payload.username !== undefined) {
+    const desiredName = payload.username.trim().toLowerCase();
+    if (desiredName && desiredName !== user.username) {
+      const existing = await User.findOne({ username: desiredName });
+      if (existing) throw new AppError(400, "Username is already taken");
+      user.username = desiredName;
+    }
+  }
+
   if (payload.fullName !== undefined) {
     user.fullName = payload.fullName.trim();
   }
@@ -263,6 +272,34 @@ async function reportUser(reporterId, reportedUserId, reason) {
   return report;
 }
 
+async function getUserFollowers(viewerId, targetId) {
+  const targetUser = await User.findById(targetId)
+    .populate("followers", "username fullName avatar bio role followers")
+    .lean();
+
+  if (!targetUser) throw new AppError(404, "User not found");
+
+  return (targetUser.followers || []).map((u) => ({
+    ...sanitizeUser(u),
+    followersCount: u.followers?.length || 0,
+    isFollowing: viewerId ? u.followers?.some((fid) => String(fid) === String(viewerId)) : false
+  }));
+}
+
+async function getUserFollowing(viewerId, targetId) {
+  const targetUser = await User.findById(targetId)
+    .populate("following", "username fullName avatar bio role followers")
+    .lean();
+
+  if (!targetUser) throw new AppError(404, "User not found");
+
+  return (targetUser.following || []).map((u) => ({
+    ...sanitizeUser(u),
+    followersCount: u.followers?.length || 0,
+    isFollowing: viewerId ? u.followers?.some((fid) => String(fid) === String(viewerId)) : false
+  }));
+}
+
 module.exports = {
   getProfile,
   getProfilePosts,
@@ -271,5 +308,7 @@ module.exports = {
   updateProfile,
   getFollowing,
   blockUser,
-  reportUser
+  reportUser,
+  getUserFollowers,
+  getUserFollowing
 };

@@ -10,7 +10,9 @@ const {
   updateMyProfile,
   getMyFollowing,
   toggleBlockUser,
-  reportAnAccount
+  reportAnAccount,
+  listUserFollowers,
+  listUserFollowing
 } = require("./user.controller");
 
 const router = express.Router();
@@ -22,6 +24,8 @@ router.patch("/me", protect, upload.single("avatar"), updateMyProfile);
 router.post("/:id/block", protect, toggleBlockUser);
 router.post("/report", protect, reportAnAccount);
 router.get("/:identifier/posts", optionalAuth, getUserProfilePosts);
+router.get("/:id/followers", optionalAuth, listUserFollowers);
+router.get("/:id/following", optionalAuth, listUserFollowing);
 router.get("/:identifier", optionalAuth, getUserProfile);
 
 module.exports = router;
