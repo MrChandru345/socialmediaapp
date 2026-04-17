@@ -9,7 +9,8 @@ const {
   blockUser,
   reportUser,
   getUserFollowers,
-  getUserFollowing
+  getUserFollowing,
+  getSavedPosts
 } = require("./user.service");
 
 const getUserProfile = asyncHandler(async (req, res) => {
@@ -62,6 +63,11 @@ const listUserFollowing = asyncHandler(async (req, res) => {
   res.json({ success: true, data: users });
 });
 
+const listMySavedPosts = asyncHandler(async (req, res) => {
+  const posts = await getSavedPosts(req.user._id, req.query);
+  res.json({ success: true, data: posts });
+});
+
 module.exports = {
   getUserProfile,
   getUserProfilePosts,
@@ -72,5 +78,6 @@ module.exports = {
   toggleBlockUser,
   reportAnAccount,
   listUserFollowers,
-  listUserFollowing
+  listUserFollowing,
+  listMySavedPosts
 };

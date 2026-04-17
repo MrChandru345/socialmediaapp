@@ -6,6 +6,7 @@ const {
 } = require("../../utils/helpers");
 const { emitUserEvent } = require("../chat/socket");
 const Notification = require("./notification.model");
+const User = require("../user/user.model");
 
 function formatNotification(notification) {
   return {
@@ -33,9 +34,14 @@ async function createNotification(payload) {
 
 async function listNotifications(userId, query) {
   const { page, limit, skip } = parsePagination(query);
+  const { type } = query;
   const filter = { recipient: userId };
 
-  const [notifications, total, unreadCount] = await Promise.all([
+  if (type && type !== "all") {
+    filter.type = type;
+  }
+
+  const [notifications, total, unreadCount, currentUser] = await Promise.all([
     Notification.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -43,11 +49,20 @@ async function listNotifications(userId, query) {
       .populate("actor", "username fullName avatar role")
       .lean(),
     Notification.countDocuments(filter),
-    Notification.countDocuments({ recipient: userId, isRead: false })
+    Notification.countDocuments({ recipient: userId, isRead: false }),
+    User.findById(userId).select("following").lean()
   ]);
 
+  const followingIds = new Set((currentUser?.following || []).map(id => String(id)));
+
   return {
-    items: notifications.map(formatNotification),
+    items: notifications.map(notification => {
+      const formatted = formatNotification(notification);
+      if (formatted.actor) {
+        formatted.actor.isFollowing = followingIds.has(String(formatted.actor.id));
+      }
+      return formatted;
+    }),
     meta: buildPaginationMeta(page, limit, total),
     unreadCount
   };

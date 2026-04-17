@@ -311,6 +311,37 @@ async function getUserFollowing(viewerId, targetId) {
   }));
 }
 
+async function getSavedPosts(userId, query) {
+  const { page, limit, skip } = parsePagination(query);
+  
+  const user = await User.findById(userId)
+    .populate({
+      path: "savedPosts",
+      options: {
+        sort: { createdAt: -1 },
+        skip,
+        limit
+      },
+      populate: {
+        path: "author",
+        select: "username fullName avatar location role"
+      }
+    })
+    .lean();
+
+  if (!user) {
+    throw new AppError(404, "User not found");
+  }
+
+  const savedPostsCount = await User.findById(userId).select("savedPosts").lean();
+  const total = savedPostsCount?.savedPosts?.length || 0;
+
+  return {
+    items: (user.savedPosts || []).map((post) => formatProfilePost(post, userId)),
+    meta: buildPaginationMeta(page, limit, total)
+  };
+}
+
 module.exports = {
   getProfile,
   getProfilePosts,
@@ -321,5 +352,6 @@ module.exports = {
   blockUser,
   reportUser,
   getUserFollowers,
-  getUserFollowing
+  getUserFollowing,
+  getSavedPosts
 };

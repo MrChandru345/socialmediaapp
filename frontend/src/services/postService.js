@@ -58,5 +58,9 @@ export const postService = {
   async remove(postId) {
     const response = await api.delete(`/posts/${postId}`);
     return response.data.data;
+  },
+  async getById(postId) {
+    const response = await api.get(`/posts/${postId}`);
+    return response.data.data;
   }
 };

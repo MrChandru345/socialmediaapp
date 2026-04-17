@@ -1,4 +1,4 @@
-﻿const env = require("../../config/env");
+const env = require("../../config/env");
 const { isCloudinaryConfigured, uploadBuffer } = require("../../config/cloudinary");
 const { AppError, normalizeMediaInput, sanitizeUser } = require("../../utils/helpers");
 const User = require("../user/user.model");
@@ -140,9 +140,45 @@ async function deleteExpiredStories() {
   };
 }
 
+async function trackStoryView(storyId, userId) {
+  const story = await Story.findById(storyId);
+  if (!story) return null;
+
+  // Don't track if viewing own story
+  if (String(story.author) === String(userId)) return null;
+
+  if (!story.viewers.includes(userId)) {
+    story.viewers.push(userId);
+    await story.save();
+  }
+  return true;
+}
+
+async function getStoryViewers(storyId, userId) {
+  const story = await Story.findById(storyId)
+    .populate("viewers", "username fullName avatar role")
+    .lean();
+
+  if (!story) {
+    throw new AppError(404, "Story not found");
+  }
+
+  // Only author can see viewers
+  if (String(story.author) !== String(userId)) {
+    throw new AppError(403, "You do not have permission to view content");
+  }
+
+  return (story.viewers || []).map(viewer => ({
+    ...sanitizeUser(viewer),
+    id: String(viewer._id)
+  }));
+}
+
 module.exports = {
   createStory,
   deleteExpiredStories,
   deleteStory,
-  getFeedStories
+  getFeedStories,
+  trackStoryView,
+  getStoryViewers
 };

@@ -18,6 +18,8 @@ const initialState = {
   error: "",
   posts: [],
   postsMeta: null,
+  savedPosts: [],
+  savedStatus: "idle",
   profile: null,
   status: "loading"
 };
@@ -42,6 +44,12 @@ export default function Profile() {
     loadProfile();
   }, [profileIdentifier]);
 
+  useEffect(() => {
+    if (activeTab === 'saved' && state.savedStatus === 'idle') {
+      loadSavedPosts();
+    }
+  }, [activeTab, state.savedStatus]);
+
   async function loadProfile() {
     if (!profileIdentifier) return;
 
@@ -57,18 +65,40 @@ export default function Profile() {
         userService.getPosts(profileIdentifier, { limit: 12 })
       ]);
 
-      setState({
+      setState(prev => ({
+        ...prev,
         error: "",
         posts: posts.items || [],
         postsMeta: posts.meta || null,
         profile,
-        status: "ready"
-      });
+        status: "ready",
+        // Reset saved status on profile change
+        savedPosts: [],
+        savedStatus: "idle"
+      }));
     } catch (caughtError) {
       setState((currentState) => ({
         ...currentState,
         error: getApiErrorMessage(caughtError, "Unable to load this profile."),
         status: "error"
+      }));
+    }
+  }
+
+  async function loadSavedPosts() {
+    setState(prev => ({ ...prev, savedStatus: 'loading' }));
+    try {
+      const result = await userService.getSavedPosts({ limit: 12 });
+      setState(prev => ({
+        ...prev,
+        savedPosts: result.items || [],
+        savedStatus: 'ready'
+      }));
+    } catch (caughtError) {
+      setState((currentState) => ({
+        ...currentState,
+        error: getApiErrorMessage(caughtError, "Unable to load saved posts."),
+        savedStatus: 'error'
       }));
     }
   }
@@ -190,14 +220,15 @@ export default function Profile() {
 
         <div className="profile-page-feed-container" style={{ width: '100%', maxWidth: '100%', marginTop: '1.5rem' }}>
           <section className="profile-feed" style={{ width: '100%' }}>
-            <ProfileTabs activeTab={activeTab} onTabChange={setActiveTab} />
+            <ProfileTabs activeTab={activeTab} onTabChange={setActiveTab} isOwnProfile={isOwnProfile} />
             
             <PostGrid 
-              posts={state.posts} 
+              posts={activeTab === 'saved' ? state.savedPosts : state.posts} 
               isOwnProfile={isOwnProfile} 
               onCreatePost={openCreatePost} 
               activeTab={activeTab}
               onPostClick={(post) => setSelectedPost(post)}
+              status={activeTab === 'saved' ? state.savedStatus : 'ready'}
             />
           </section>
         </div>
@@ -208,10 +239,20 @@ export default function Profile() {
         post={selectedPost}
         onClose={() => setSelectedPost(null)}
         onPostUpdated={(updated) => {
-          setState(prev => ({
-            ...prev,
-            posts: prev.posts.map(p => p.id === updated.id ? { ...p, ...updated } : p)
-          }));
+          setState(prev => {
+            const newPosts = prev.posts.map(p => p.id === updated.id ? { ...p, ...updated } : p);
+            let newSaved = prev.savedPosts.map(p => p.id === updated.id ? { ...p, ...updated } : p);
+            
+            if (updated.hasOwnProperty('savedByViewer') && !updated.savedByViewer) {
+              newSaved = newSaved.filter(p => p.id !== updated.id);
+            }
+
+            return {
+              ...prev,
+              posts: newPosts,
+              savedPosts: newSaved
+            };
+          });
         }}
       />
 

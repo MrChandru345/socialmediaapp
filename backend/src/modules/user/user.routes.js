@@ -12,7 +12,8 @@ const {
   toggleBlockUser,
   reportAnAccount,
   listUserFollowers,
-  listUserFollowing
+  listUserFollowing,
+  listMySavedPosts
 } = require("./user.controller");
 
 const router = express.Router();
@@ -20,6 +21,7 @@ const router = express.Router();
 router.get("/search", protect, searchForUsers);
 router.get("/suggestions", protect, listSuggestions);
 router.get("/me/following", protect, getMyFollowing);
+router.get("/me/saved", protect, listMySavedPosts);
 router.patch("/me", protect, upload.single("avatar"), updateMyProfile);
 router.post("/:id/block", protect, toggleBlockUser);
 router.post("/report", protect, reportAnAccount);
