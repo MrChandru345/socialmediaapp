@@ -1,4 +1,4 @@
-﻿const { isCloudinaryConfigured, uploadBuffer } = require("../../config/cloudinary");
+const { isCloudinaryConfigured, uploadBuffer } = require("../../config/cloudinary");
 const { AppError, buildPaginationMeta, normalizeMediaInput, parsePagination, sanitizeUser } = require("../../utils/helpers");
 const { createNotification } = require("../notification/notification.service");
 const User = require("../user/user.model");
@@ -43,6 +43,7 @@ function formatAuthor(author) {
     username: user.username,
     fullName: user.fullName,
     avatar: user.avatar,
+    location: user.location,
     role: user.role
   };
 }
@@ -52,6 +53,7 @@ function formatPost(post, viewerId) {
     ...post,
     id: String(post._id),
     author: formatAuthor(post.author),
+    commentsCount: post.commentsCount || 0,
     likesCount: post.likes?.length || 0,
     savesCount: post.saves?.length || 0,
     likedByViewer: viewerId
@@ -80,7 +82,7 @@ async function createPost(userId, payload, files) {
   });
 
   const populatedPost = await Post.findById(post._id)
-    .populate("author", "username fullName avatar role")
+    .populate("author", "username fullName avatar location role")
     .lean();
 
   return formatPost(populatedPost, userId);
@@ -102,7 +104,7 @@ async function getFeed(userId, query) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("author", "username fullName avatar role")
+      .populate("author", "username fullName avatar location role")
       .lean(),
     Post.countDocuments(filter)
   ]);
@@ -122,7 +124,7 @@ async function getExplorePosts(query, viewerId) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("author", "username fullName avatar role")
+      .populate("author", "username fullName avatar location role")
       .lean(),
     Post.countDocuments(filter)
   ]);
@@ -135,7 +137,7 @@ async function getExplorePosts(query, viewerId) {
 
 async function getPostById(postId, viewerId) {
   const post = await Post.findById(postId)
-    .populate("author", "username fullName avatar role")
+    .populate("author", "username fullName avatar location role")
     .lean();
 
   if (!post) {
@@ -242,3 +244,6 @@ module.exports = {
   toggleLike,
   toggleSave
 };
+
+
+

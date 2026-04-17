@@ -1,17 +1,165 @@
-export default function CommentSection({ count, preview }) {
+import { useState } from "react";
+
+import { useAuth } from "../../hooks/useAuth";
+import { commentService } from "../../services/commentService";
+import {
+  getApiErrorMessage,
+  getAvatarForUser,
+  getCommentAuthorLabel,
+  getCommentId,
+  getCommentMeta,
+  isOwnResource
+} from "../../utils/helpers";
+import Button from "../common/Button";
+import Loader from "../common/Loader";
+
+export default function CommentSection({ count, onCountChange, postId }) {
+  const { user } = useAuth();
+  const [comments, setComments] = useState([]);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadedPostId, setLoadedPostId] = useState("");
+  const [removingCommentId, setRemovingCommentId] = useState("");
+
+  async function loadComments() {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await commentService.list(postId, { limit: 20 });
+      setComments(response.items || []);
+      setLoadedPostId(postId);
+    } catch (caughtError) {
+      setError(getApiErrorMessage(caughtError, "Unable to load comments."));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleToggle() {
+    const nextExpanded = !isExpanded;
+    setIsExpanded(nextExpanded);
+
+    if (nextExpanded && loadedPostId !== postId) {
+      await loadComments();
+    }
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    const content = draft.trim();
+    if (!content) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      const createdComment = await commentService.create(postId, { content });
+      setComments((currentComments) => [createdComment, ...currentComments]);
+      onCountChange?.(count + 1);
+      setDraft("");
+      setIsExpanded(true);
+      setLoadedPostId(postId);
+    } catch (caughtError) {
+      setError(getApiErrorMessage(caughtError, "Unable to add comment."));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleDelete(commentId) {
+    setRemovingCommentId(commentId);
+    setError("");
+
+    try {
+      await commentService.remove(commentId);
+      setComments((currentComments) =>
+        currentComments.filter((comment) => getCommentId(comment) !== commentId)
+      );
+      onCountChange?.(Math.max(count - 1, 0));
+    } catch (caughtError) {
+      setError(getApiErrorMessage(caughtError, "Unable to delete comment."));
+    } finally {
+      setRemovingCommentId("");
+    }
+  }
+
   return (
     <div className="comment-preview">
-      {preview ? (
-        <div className="comment-preview__card">
-          <p className="eyebrow">Top comment</p>
-          <p>
-            <strong>{preview.author}</strong> {preview.text}
-          </p>
+      <button className="link-button" onClick={handleToggle} type="button">
+        {isExpanded ? "Hide comments" : `View all ${count} comments`}
+      </button>
+
+      {isExpanded ? (
+        <div className="comment-thread">
+          {isLoading ? <Loader label="Loading comments..." /> : null}
+
+          {!isLoading && comments.length === 0 ? (
+            <p className="comment-thread__empty">No comments yet. Start the conversation.</p>
+          ) : null}
+
+          {!isLoading
+            ? comments.map((comment) => {
+                const commentId = getCommentId(comment);
+                const isOwnComment = isOwnResource(comment?.author?.id, user?.id);
+
+                return (
+                  <div className="comment-item" key={commentId}>
+                    <img
+                      alt={getCommentAuthorLabel(comment)}
+                      className="comment-item__avatar"
+                      src={getAvatarForUser(comment.author, getCommentAuthorLabel(comment))}
+                    />
+                    <div className="comment-item__body">
+                      <p>
+                        <strong>{getCommentAuthorLabel(comment)}</strong> {comment.content}
+                      </p>
+                      <div className="comment-item__meta">
+                        <span>{getCommentMeta(comment)}</span>
+                        {isOwnComment ? (
+                          <button
+                            className="link-button comment-item__delete"
+                            disabled={removingCommentId === commentId}
+                            onClick={() => handleDelete(commentId)}
+                            type="button"
+                          >
+                            {removingCommentId === commentId ? "Deleting..." : "Delete"}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            : null}
+
+          <form className="instagram-comment-box" onSubmit={handleSubmit}>
+            <textarea
+              className="instagram-comment-input"
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder="Add a comment..."
+              rows="1"
+              value={draft}
+            />
+            {draft.trim() ? (
+              <button
+                className="instagram-comment-submit"
+                disabled={isSubmitting}
+                type="submit"
+              >
+                {isSubmitting ? "..." : "Post"}
+              </button>
+            ) : null}
+            {error ? <p className="form-error instagram-comment-error">{error}</p> : null}
+          </form>
         </div>
       ) : null}
-      <button className="link-button" type="button">
-        View all {count} comments
-      </button>
     </div>
   );
 }

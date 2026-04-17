@@ -1,4 +1,4 @@
-﻿const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
 class AppError extends Error {
   constructor(statusCode, message, details) {
@@ -11,7 +11,7 @@ class AppError extends Error {
 
 function parsePagination(query = {}) {
   const page = Math.max(Number.parseInt(query.page, 10) || 1, 1);
-  const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 10, 1), 50);
+  const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 10, 1), 1000);
   const skip = (page - 1) * limit;
 
   return {

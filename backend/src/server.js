@@ -1,4 +1,4 @@
-﻿const http = require("http");
+const http = require("http");
 
 const { Server } = require("socket.io");
 
@@ -40,3 +40,4 @@ if (require.main === module) {
 module.exports = {
   startServer
 };
+// Restarting to pick up new Cloudinary env keys

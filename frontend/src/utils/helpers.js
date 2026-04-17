@@ -2,16 +2,331 @@ export function classNames(...values) {
   return values.filter(Boolean).join(" ");
 }
 
+export function getApiErrorMessage(error, fallback = "Something went wrong.") {
+  return error?.response?.data?.message || error?.message || fallback;
+}
+
 export function formatCompactNumber(value) {
-  if (value >= 1000000) {
-    return `${(value / 1000000).toFixed(1)}m`;
+  const safeValue = Number(value) || 0;
+
+  if (safeValue >= 1000000) {
+    return `${(safeValue / 1000000).toFixed(1)}m`;
   }
 
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(1)}k`;
+  if (safeValue >= 1000) {
+    return `${(safeValue / 1000).toFixed(1)}k`;
   }
 
-  return String(value);
+  return String(safeValue);
+}
+
+export function formatRelativeTime(value) {
+  if (!value) {
+    return "Just now";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Just now";
+  }
+
+  const diffMs = date.getTime() - Date.now();
+  const diffSeconds = Math.round(diffMs / 1000);
+  const absSeconds = Math.abs(diffSeconds);
+  const formatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+  if (absSeconds < 60) {
+    return formatter.format(diffSeconds, "second");
+  }
+
+  const diffMinutes = Math.round(diffSeconds / 60);
+  if (Math.abs(diffMinutes) < 60) {
+    return formatter.format(diffMinutes, "minute");
+  }
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (Math.abs(diffHours) < 24) {
+    return formatter.format(diffHours, "hour");
+  }
+
+  const diffDays = Math.round(diffHours / 24);
+  if (Math.abs(diffDays) < 7) {
+    return formatter.format(diffDays, "day");
+  }
+
+  return date.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric"
+  });
+}
+
+export function getDisplayName(user, fallback = "Curator") {
+  return user?.fullName || user?.username || fallback;
+}
+
+export function getHandle(user) {
+  return user?.username ? `@${user.username}` : "@curator";
+}
+
+export function getUserLocation(user) {
+  return user?.location || "Global";
+}
+
+export function resolvePrimaryMedia(post) {
+  return post?.media?.[0] || null;
+}
+
+export function truncateText(value, maxLength = 140) {
+  if (!value || value.length <= maxLength) {
+    return value || "";
+  }
+
+  return `${value.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
+export function toArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+export function countItemsLabel(count, singular, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+export function buildStatusCopy(user) {
+  if (user?.isOnline) {
+    return "Active now";
+  }
+
+  if (user?.followersCount) {
+    return `${formatCompactNumber(user.followersCount)} followers`;
+  }
+
+  return "Connect";
+}
+
+export function isOwnResource(resourceUserId, currentUserId) {
+  return Boolean(resourceUserId && currentUserId && String(resourceUserId) === String(currentUserId));
+}
+
+export function createOptimisticPost(post) {
+  return {
+    ...post,
+    commentsCount: post.commentsCount || 0,
+    likedByViewer: Boolean(post.likedByViewer),
+    likesCount: post.likesCount || 0,
+    savedByViewer: Boolean(post.savedByViewer),
+    savesCount: post.savesCount || 0
+  };
+}
+
+export function buildComposerMediaPayload(mediaUrl, mediaType) {
+  if (!mediaUrl) {
+    return null;
+  }
+
+  return {
+    type: mediaType || "image",
+    url: mediaUrl
+  };
+}
+
+export function isVideoMedia(media) {
+  return media?.type === "video";
+}
+
+export function getStoryChipLabel(user, fallback = "Your Story") {
+  return user?.username || user?.fullName || fallback;
+}
+
+export function getCommentAuthorLabel(comment) {
+  return getDisplayName(comment?.author, "Curator");
+}
+
+export function getAvatarForUser(user, fallbackName) {
+  return resolveAvatar(getDisplayName(user, fallbackName), user?.avatar?.url);
+}
+
+export function buildSnapshotItems({ postsCount, storiesCount, suggestionsCount }) {
+  return [
+    {
+      id: "snapshot-posts",
+      icon: "dynamic_feed",
+      label: "Posts in your feed",
+      value: formatCompactNumber(postsCount)
+    },
+    {
+      id: "snapshot-stories",
+      icon: "auto_stories",
+      label: "Story groups live",
+      value: formatCompactNumber(storiesCount)
+    },
+    {
+      id: "snapshot-suggestions",
+      icon: "person_add",
+      label: "Creators to follow",
+      value: formatCompactNumber(suggestionsCount)
+    }
+  ];
+}
+
+export function fileToPreviewUrl(file) {
+  if (!file) {
+    return "";
+  }
+
+  return URL.createObjectURL(file);
+}
+
+export function revokePreviewUrl(url) {
+  if (url) {
+    URL.revokeObjectURL(url);
+  }
+}
+
+export function hasValue(value) {
+  return Boolean(value && String(value).trim());
+}
+
+export function trimOrEmpty(value) {
+  return value?.trim() || "";
+}
+
+export function getPostCommentCount(post) {
+  return post?.commentsCount || 0;
+}
+
+export function getPostLikeCount(post) {
+  return post?.likesCount || 0;
+}
+
+export function getPostSaveCount(post) {
+  return post?.savesCount || 0;
+}
+
+export function getCommentMeta(comment) {
+  return formatRelativeTime(comment?.createdAt);
+}
+
+export function getStoryMeta(story) {
+  return story?.caption || formatRelativeTime(story?.createdAt);
+}
+
+export function getSuggestionSubtitle(user) {
+  if (user?.bio) {
+    return user.bio.length > 60 ? `${user.bio.slice(0, 57).trimEnd()}...` : user.bio;
+  }
+
+  return buildStatusCopy(user);
+}
+
+export function getFeedHeading(user) {
+  return `${getDisplayName(user, "Curator")}'s feed`;
+}
+
+export function countUniqueAuthors(stories) {
+  return toArray(stories).length;
+}
+
+export function countFeedPosts(feed) {
+  return toArray(feed).length;
+}
+
+export function countSuggestions(suggestions) {
+  return toArray(suggestions).length;
+}
+
+export function getStoryAuthor(group) {
+  return group?.author || null;
+}
+
+export function getStoryItems(group) {
+  return toArray(group?.items);
+}
+
+export function hasStories(group) {
+  return getStoryItems(group).length > 0;
+}
+
+export function getStoryTitle(group) {
+  return getDisplayName(getStoryAuthor(group), "Story");
+}
+
+export function getStoryAvatar(group) {
+  return getAvatarForUser(getStoryAuthor(group), "Story");
+}
+
+export function getStoryId(group) {
+  return getStoryAuthor(group)?.id || getStoryAuthor(group)?._id || getStoryTitle(group);
+}
+
+export function getAuthorId(user) {
+  return user?.id || user?._id || null;
+}
+
+export function getPostAuthor(post) {
+  return post?.author || null;
+}
+
+export function getPostAuthorName(post) {
+  return getDisplayName(getPostAuthor(post), "Curator");
+}
+
+export function getPostAvatar(post) {
+  return getAvatarForUser(getPostAuthor(post), getPostAuthorName(post));
+}
+
+export function getPostLocation(post) {
+  return getUserLocation(getPostAuthor(post));
+}
+
+export function getPostTimestamp(post) {
+  return formatRelativeTime(post?.createdAt);
+}
+
+export function getPostCaption(post) {
+  return post?.caption || "";
+}
+
+export function getPostMedia(post) {
+  return resolvePrimaryMedia(post);
+}
+
+export function hasComments(post) {
+  return getPostCommentCount(post) > 0;
+}
+
+export function getCommentId(comment) {
+  return comment?.id || comment?._id;
+}
+
+export function getMediaPreviewSource(file, mediaUrl) {
+  if (file) {
+    return fileToPreviewUrl(file);
+  }
+
+  return mediaUrl || "";
+}
+
+export function getMediaPreviewType(file, mediaType) {
+  if (file?.type?.startsWith("video/")) {
+    return "video";
+  }
+
+  return mediaType || "image";
+}
+
+export function getPostEmptyStateMessage() {
+  return "Follow a few creators or publish your first post to bring your feed to life.";
+}
+
+export function getSuggestionEmptyStateMessage() {
+  return "You are caught up on suggestions for now.";
+}
+
+export function getStoryEmptyStateMessage() {
+  return "Share the first story in your circle.";
 }
 
 export function getInitials(name = "Curator") {
@@ -28,8 +343,7 @@ export function resolveAvatar(name, avatarUrl) {
     return avatarUrl;
   }
 
-  const seed = encodeURIComponent(name || "Curator");
-  return `https://api.dicebear.com/9.x/notionists/svg?seed=${seed}&backgroundType=gradientLinear`;
+  return "/nanobanana.png";
 }
 
 export function withDelay(value, ms = 350) {

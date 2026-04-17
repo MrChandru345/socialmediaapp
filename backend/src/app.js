@@ -1,4 +1,4 @@
-﻿const cors = require("cors");
+const cors = require("cors");
 const express = require("express");
 const morgan = require("morgan");
 
@@ -13,14 +13,17 @@ const notificationRoutes = require("./modules/notification/notification.routes")
 const storyRoutes = require("./modules/story/story.routes");
 const reelRoutes = require("./modules/reel/reel.routes");
 const adminRoutes = require("./modules/admin/admin.routes");
-const { errorHandler, notFoundHandler } = require("./middleware/error.middleware");
+const {
+  errorHandler,
+  notFoundHandler,
+} = require("./middleware/error.middleware");
 
 const app = express();
 
 app.use(
   cors({
     origin: env.clientOrigin,
-    credentials: true
+    credentials: true,
   })
 );
 app.use(express.json());
@@ -30,7 +33,7 @@ app.use(morgan(env.isProduction ? "combined" : "dev"));
 app.get("/", (req, res) => {
   res.json({
     success: true,
-    message: "Social Media App backend is running"
+    message: "Social Media App backend is running",
   });
 });
 
@@ -38,7 +41,7 @@ app.get("/api/health", (req, res) => {
   res.json({
     success: true,
     service: "socialmediaapp-backend",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 

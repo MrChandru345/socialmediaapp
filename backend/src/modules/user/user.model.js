@@ -1,4 +1,4 @@
-﻿const bcrypt = require("bcryptjs");
+const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
@@ -87,7 +87,13 @@ const userSchema = new mongoose.Schema(
     lastSeen: {
       type: Date,
       default: Date.now
-    }
+    },
+    blockedUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+      }
+    ]
   },
   {
     timestamps: true
