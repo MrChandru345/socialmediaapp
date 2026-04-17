@@ -24,7 +24,7 @@ function formatChatUser(user) {
     fullName: sanitized.fullName,
     avatar: sanitized.avatar,
     role: sanitized.role,
-    isOnline: Boolean(sanitized.isOnline),
+    isOnline: getOnlineUsers().includes(sanitized.id),
     lastSeen: sanitized.lastSeen,
     createdAt: sanitized.createdAt
   };
@@ -403,9 +403,18 @@ async function getActiveNotes(userId) {
   const relevantUserIds = conversations.filter(id => String(id) !== String(userId));
   relevantUserIds.push(userId);
 
-  return await Note.find({ user: { $in: relevantUserIds } })
-    .populate("user", "username fullName avatar")
-    .sort({ createdAt: -1 });
+  const notes = await Note.find({ user: { $in: relevantUserIds } })
+    .populate("user", "username fullName avatar isOnline")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const onlineUserIds = getOnlineUsers();
+  return notes.map(note => {
+    if (note.user) {
+      note.user.isOnline = onlineUserIds.includes(String(note.user._id));
+    }
+    return note;
+  });
 }
 
 async function deleteNote(userId, noteId) {

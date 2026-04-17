@@ -300,7 +300,8 @@ export default function Home() {
                 avatar: getAvatarForUser(suggestion, getDisplayName(suggestion)),
                 id: suggestion.id,
                 name: getDisplayName(suggestion),
-                status: getSuggestionSubtitle(suggestion)
+                status: getSuggestionSubtitle(suggestion),
+                isOnline: suggestion.isOnline
               }))}
             />
           ) : null}

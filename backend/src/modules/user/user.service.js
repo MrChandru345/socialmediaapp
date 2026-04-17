@@ -1,5 +1,6 @@
 const Post = require("../post/post.model");
 const User = require("./user.model");
+const { getOnlineUsers } = require("../chat/socket");
 const { isCloudinaryConfigured, uploadBuffer } = require("../../config/cloudinary");
 const {
   AppError,
@@ -17,6 +18,7 @@ function sanitizeProfile(user, viewerId, postCount) {
     followersCount: user.followers?.length || 0,
     followingCount: user.following?.length || 0,
     postCount,
+    isOnline: getOnlineUsers().includes(String(user._id)),
     isFollowing: viewerId
       ? user.followers?.some((entry) => String(entry) === String(viewerId))
       : false
@@ -200,6 +202,7 @@ async function searchUsers(query, viewerId) {
     ...sanitizeUser(user),
     followersCount: user.followers?.length || 0,
     followingCount: user.following?.length || 0,
+    isOnline: getOnlineUsers().includes(String(user._id)),
     isFollowing: viewerId
       ? user.followers?.some((entry) => String(entry) === String(viewerId))
       : false
@@ -222,9 +225,11 @@ async function getSuggestions(userId) {
     .limit(8)
     .lean();
 
+  const onlineUserIds = getOnlineUsers();
   return users.map((user) => ({
     ...sanitizeUser(user),
-    followersCount: user.followers?.length || 0
+    followersCount: user.followers?.length || 0,
+    isOnline: onlineUserIds.includes(String(user._id))
   }));
 }
 
@@ -237,10 +242,12 @@ async function getFollowing(userId) {
     throw new AppError(404, "User not found");
   }
 
+  const onlineUserIds = getOnlineUsers();
   return (currentUser.following || []).map((user) => ({
     ...sanitizeUser(user),
     followersCount: user.followers?.length || 0,
-    isFollowing: true
+    isFollowing: true,
+    isOnline: onlineUserIds.includes(String(user._id))
   }));
 }
 
@@ -279,10 +286,12 @@ async function getUserFollowers(viewerId, targetId) {
 
   if (!targetUser) throw new AppError(404, "User not found");
 
+  const onlineUserIds = getOnlineUsers();
   return (targetUser.followers || []).map((u) => ({
     ...sanitizeUser(u),
     followersCount: u.followers?.length || 0,
-    isFollowing: viewerId ? u.followers?.some((fid) => String(fid) === String(viewerId)) : false
+    isFollowing: viewerId ? u.followers?.some((fid) => String(fid) === String(viewerId)) : false,
+    isOnline: onlineUserIds.includes(String(u._id))
   }));
 }
 
@@ -293,10 +302,12 @@ async function getUserFollowing(viewerId, targetId) {
 
   if (!targetUser) throw new AppError(404, "User not found");
 
+  const onlineUserIds = getOnlineUsers();
   return (targetUser.following || []).map((u) => ({
     ...sanitizeUser(u),
     followersCount: u.followers?.length || 0,
-    isFollowing: viewerId ? u.followers?.some((fid) => String(fid) === String(viewerId)) : false
+    isFollowing: viewerId ? u.followers?.some((fid) => String(fid) === String(viewerId)) : false,
+    isOnline: onlineUserIds.includes(String(u._id))
   }));
 }
 

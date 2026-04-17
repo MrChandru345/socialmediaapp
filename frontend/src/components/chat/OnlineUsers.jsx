@@ -9,7 +9,7 @@ export default function OnlineUsers({ title = "Friends Online", users }) {
           <button className="presence-row" key={user.id} type="button">
             <span className="presence-row__avatar">
               <img alt={user.name} src={user.avatar} />
-              <span className="presence-row__status" />
+              {user.isOnline && <span className="presence-row__status" />}
             </span>
             <span className="presence-row__content">
               <strong>{user.name}</strong>
