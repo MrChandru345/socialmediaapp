@@ -29,19 +29,33 @@ export default function StoryBar({ currentUser, onCreateStory, onSelectStory, st
         </button>
       )}
 
-      {otherStories.map((storyGroup) => (
-        <button
-          className="story-chip"
-          key={getStoryId(storyGroup)}
-          onClick={() => onSelectStory?.(storyGroup)}
-          type="button"
-        >
-          <span className="story-chip__avatar story-chip__avatar--accent">
-            <img alt={getStoryTitle(storyGroup)} src={getStoryAvatar(storyGroup)} />
-          </span>
-          <span>{getStoryTitle(storyGroup)}</span>
-        </button>
-      ))}
+      {otherStories.map((storyGroup) => {
+        const allViewed = storyGroup.items && storyGroup.items.length > 0
+          ? storyGroup.items.every(story => story.viewedByViewer)
+          : false;
+
+        return (
+          <button
+            className="story-chip"
+            key={getStoryId(storyGroup)}
+            onClick={() => onSelectStory?.(storyGroup)}
+            type="button"
+          >
+            <span 
+              className={
+                allViewed 
+                  ? "story-chip__avatar story-chip__avatar--viewed" 
+                  : "story-chip__avatar story-chip__avatar--accent"
+              }
+            >
+              <img alt={getStoryTitle(storyGroup)} src={getStoryAvatar(storyGroup)} />
+            </span>
+            <span style={{ color: allViewed ? "var(--text-soft)" : "inherit" }}>
+              {getStoryTitle(storyGroup)}
+            </span>
+          </button>
+        );
+      })}
     </section>
   );
 }

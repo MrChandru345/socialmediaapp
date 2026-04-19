@@ -80,6 +80,21 @@ function formatMessage(message) {
     };
   }
 
+  // Handle populated shared post natively
+  if (message.sharedPost && typeof message.sharedPost === "object") {
+    const media = Array.isArray(message.sharedPost.media) 
+      ? message.sharedPost.media[0] 
+      : message.sharedPost.media;
+    formatted.sharedPost = {
+      ...message.sharedPost,
+      id: String(message.sharedPost._id),
+      author: message.sharedPost.author ? formatChatUser(message.sharedPost.author) : null,
+      media: Array.isArray(message.sharedPost.media) ? message.sharedPost.media : [message.sharedPost.media]
+    };
+  } else if (message.sharedPost) {
+    formatted.sharedPost = String(message.sharedPost);
+  }
+
   return formatted;
 }
 
@@ -223,6 +238,10 @@ async function getConversation(userId, withUserId, query) {
       path: "replyTo",
       populate: { path: "sender", select: "username fullName avatar" }
     })
+    .populate({
+      path: "sharedPost",
+      populate: { path: "author", select: "username fullName avatar" }
+    })
     .lean();
 
   return {
@@ -246,11 +265,12 @@ async function sendMessage(userId, receiverId, payload, files) {
   const uploadedMedia = await uploadMediaFiles(files, "socialmediaapp/chat");
   const attachments = [...payloadMedia, ...uploadedMedia];
 
-  if (!body && attachments.length === 0) {
-    throw new AppError(400, "A message body or attachment is required");
+  if (!body && attachments.length === 0 && !payload.sharedPost) {
+    throw new AppError(400, "A message body, attachment, or shared post is required");
   }
 
   const replyTo = payload.replyTo || null;
+  const sharedPost = payload.sharedPost || null;
 
   const message = await Message.create({
     roomId: buildRoomId(userId, receiverId),
@@ -259,7 +279,8 @@ async function sendMessage(userId, receiverId, payload, files) {
     receiver: receiverId,
     body,
     attachments,
-    replyTo
+    replyTo,
+    sharedPost
   });
 
   const populatedMessage = await Message.findById(message._id)
@@ -268,6 +289,10 @@ async function sendMessage(userId, receiverId, payload, files) {
     .populate({
       path: "replyTo",
       populate: { path: "sender", select: "username fullName avatar" }
+    })
+    .populate({
+      path: "sharedPost",
+      populate: { path: "author", select: "username fullName avatar" }
     })
     .lean();
 

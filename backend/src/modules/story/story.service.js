@@ -21,12 +21,15 @@ function formatAuthor(author) {
   };
 }
 
-function formatStory(story) {
+function formatStory(story, viewerId) {
   return {
     ...story,
     id: String(story._id),
     author: formatAuthor(story.author),
-    viewersCount: story.viewers?.length || 0
+    viewersCount: story.viewers?.length || 0,
+    viewedByViewer: viewerId && story.viewers
+      ? story.viewers.some(id => String(id) === String(viewerId))
+      : false
   };
 }
 
@@ -73,7 +76,7 @@ async function createStory(userId, payload, file) {
     .populate("author", "username fullName avatar role")
     .lean();
 
-  return formatStory(populatedStory);
+  return formatStory(populatedStory, userId);
 }
 
 async function getFeedStories(userId) {
@@ -104,7 +107,7 @@ async function getFeedStories(userId) {
       });
     }
 
-    groupedStories.get(authorId).items.push(formatStory(story));
+    groupedStories.get(authorId).items.push(formatStory(story, userId));
   });
 
   return Array.from(groupedStories.values());

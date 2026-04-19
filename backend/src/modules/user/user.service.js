@@ -210,13 +210,18 @@ async function searchUsers(query, viewerId) {
 }
 
 async function getSuggestions(userId) {
-  const currentUser = await User.findById(userId).select("following").lean();
+  const currentUser = await User.findById(userId)
+    .populate("following", "username")
+    .lean();
 
   if (!currentUser) {
     throw new AppError(404, "User not found");
   }
 
-  const excludedIds = [userId, ...(currentUser.following || [])];
+  const followingList = currentUser.following || [];
+  const followingMap = new Map(followingList.map((f) => [String(f._id), f.username]));
+  const excludedIds = [userId, ...followingList.map((f) => f._id)];
+
   const users = await User.find({
     _id: { $nin: excludedIds }
   })
@@ -226,11 +231,23 @@ async function getSuggestions(userId) {
     .lean();
 
   const onlineUserIds = getOnlineUsers();
-  return users.map((user) => ({
-    ...sanitizeUser(user),
-    followersCount: user.followers?.length || 0,
-    isOnline: onlineUserIds.includes(String(user._id))
-  }));
+  return users.map((user) => {
+    let followedByMutual = null;
+    const followersStr = (user.followers || []).map((id) => String(id));
+    for (const fId of followersStr) {
+      if (followingMap.has(fId)) {
+        followedByMutual = followingMap.get(fId);
+        break;
+      }
+    }
+
+    return {
+      ...sanitizeUser(user),
+      followersCount: user.followers?.length || 0,
+      isOnline: onlineUserIds.includes(String(user._id)),
+      followedByMutual
+    };
+  });
 }
 
 async function getFollowing(userId) {

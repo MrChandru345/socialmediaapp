@@ -343,7 +343,8 @@ export function resolveAvatar(name, avatarUrl) {
     return avatarUrl;
   }
 
-  return "/nanobanana.png";
+  const encodedName = encodeURIComponent(name || "User");
+  return `https://ui-avatars.com/api/?name=${encodedName}&background=random&color=fff`;
 }
 
 export function withDelay(value, ms = 350) {

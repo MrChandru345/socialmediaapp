@@ -17,22 +17,24 @@ export const chatService = {
   },
   
   async sendMessage(userId, payload) {
-    // Handle media attachments via FormData if they exist
-    if (payload.file || (payload.attachments && payload.attachments.length > 0)) {
+    // If a physical file is provided (e.g. from file input or recording), use FormData
+    if (payload.file) {
       const formData = new FormData();
       formData.append("body", payload.body || "");
       if (payload.replyTo) formData.append("replyTo", payload.replyTo);
-      
-      const files = payload.attachments || (payload.file ? [payload.file] : []);
-      files.forEach((file) => formData.append("attachments", file));
+      if (payload.sharedPost) formData.append("sharedPost", payload.sharedPost);
+      formData.append("attachments", payload.file);
 
       const response = await api.post(`/chat/${userId}`, formData);
       return response.data.data;
     }
 
+    // Otherwise, send as JSON (supports forwarding already-uploaded attachments)
     const response = await api.post(`/chat/${userId}`, {
       body: payload.body || "",
-      replyTo: payload.replyTo || null
+      replyTo: payload.replyTo || null,
+      attachments: payload.attachments || [],
+      sharedPost: payload.sharedPost || null
     });
     return response.data.data;
   },
