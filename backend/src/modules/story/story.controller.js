@@ -1,5 +1,5 @@
-﻿const { asyncHandler } = require("../../middleware/error.middleware");
-const { createStory, deleteStory, getFeedStories } = require("./story.service");
+const { asyncHandler } = require("../../middleware/error.middleware");
+const { createStory, deleteStory, getFeedStories, trackStoryView, getStoryViewers } = require("./story.service");
 
 const createNewStory = asyncHandler(async (req, res) => {
   const story = await createStory(req.user._id, req.body, req.file);
@@ -30,8 +30,28 @@ const removeStory = asyncHandler(async (req, res) => {
   });
 });
 
+const listViewers = asyncHandler(async (req, res) => {
+  const viewers = await getStoryViewers(req.params.storyId, req.user._id);
+
+  res.json({
+    success: true,
+    data: viewers
+  });
+});
+
+const viewStory = asyncHandler(async (req, res) => {
+  await trackStoryView(req.params.storyId, req.user._id);
+
+  res.json({
+    success: true,
+    message: "View tracked"
+  });
+});
+
 module.exports = {
   createNewStory,
   getFeed,
-  removeStory
+  removeStory,
+  listViewers,
+  viewStory
 };

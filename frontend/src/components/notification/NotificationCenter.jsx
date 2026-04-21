@@ -1,11 +1,9 @@
 import { Link } from "react-router-dom";
-
 import {
   formatRelativeTime,
   getAvatarForUser,
   getDisplayName
 } from "../../utils/helpers";
-import Button from "../common/Button";
 import Loader from "../common/Loader";
 
 function getNotificationDestination(notification) {
@@ -17,89 +15,179 @@ function getNotificationDestination(notification) {
     return "/reels";
   }
 
-  if (notification.actor?.username || notification.actor?.id) {
-    return `/profile/${notification.actor.username || notification.actor.id}`;
+  if (notification.type === "follow") {
+     return `/profile/${notification.actor?.username || notification.actor?.id}`;
+  }
+
+  if (notification.entityModel === "Post" || notification.entityModel === "Like" || notification.entityModel === "Comment") {
+     const currentPath = window.location.pathname === "/chat" ? "/" : window.location.pathname;
+     return `${currentPath}?post=${notification.entityId}`;
   }
 
   return "/";
 }
 
-function getNotificationLabel(notification) {
-  const actorName = getDisplayName(notification.actor);
-  return `${actorName} ${notification.message || "sent you an update"}`;
+function groupNotifications(notifications) {
+  const groups = {
+    new: [],
+    thisWeek: [],
+    thisMonth: [],
+    earlier: []
+  };
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const oneWeekAgo = new Date(today);
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const oneMonthAgo = new Date(today);
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+  notifications.forEach(notification => {
+    const createdDate = new Date(notification.createdAt);
+
+    if (createdDate >= today) {
+      groups.new.push(notification);
+    } else if (createdDate >= oneWeekAgo) {
+      groups.thisWeek.push(notification);
+    } else if (createdDate >= oneMonthAgo) {
+      groups.thisMonth.push(notification);
+    } else {
+      groups.earlier.push(notification);
+    }
+  });
+
+  return groups;
 }
 
 export default function NotificationCenter({
   error,
   isLoading,
   notifications,
+  activeFilter,
+  onFilterChange,
+  onFollowToggle,
   onClose,
-  onMarkAllRead,
   onMarkRead,
-  open,
-  unreadCount
+  open
 }) {
+  const grouped = groupNotifications(notifications);
+
+  const filters = [
+    { id: 'all', label: 'All' },
+    { id: 'follow', label: 'Follows' },
+    { id: 'comment', label: 'Comments' },
+    { id: 'like', label: 'Likes' }
+  ];
+
+  const renderGroup = (title, items) => {
+    if (items.length === 0) return null;
+    return (
+      <div className="notification-group" key={title}>
+        <h5 className="notification-group-header">{title}</h5>
+        {items.map(notification => (
+          <NotificationRow 
+            key={notification.id} 
+            notification={notification} 
+            onFollowToggle={onFollowToggle}
+            onMarkRead={onMarkRead}
+            onClose={onClose}
+          />
+        ))}
+      </div>
+    );
+  };
+
   return (
     <>
       {open ? <div className="notification-sidebar-overlay" onClick={onClose} aria-hidden="true" /> : null}
       <aside className={`notification-sidebar ${open ? "open" : ""}`}>
-        <div className="notification-panel__actions">
-          <div>
-            <p className="eyebrow">Inbox</p>
-            <h4>{unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}</h4>
+        <div className="activity-header">
+          <h3>Activity</h3>
+          <div className="filter-tabs-row">
+            {filters.map(f => (
+              <button 
+                key={f.id}
+                className={`filter-tab ${activeFilter === f.id ? 'active' : ''}`}
+                onClick={() => onFilterChange(f.id)}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
-          <Button disabled={unreadCount === 0 || isLoading} onClick={onMarkAllRead} size="sm" variant="ghost">
-            Mark all read
-          </Button>
         </div>
 
-        {error ? <p className="form-error">{error}</p> : null}
+        {error ? <p className="form-error" style={{ margin: '1rem' }}>{error}</p> : null}
 
-        {isLoading ? (
-          <Loader label="Loading notifications..." />
-        ) : notifications.length > 0 ? (
-          <div className="notification-list">
-            {notifications.map((notification) => {
-              const destination = getNotificationDestination(notification);
-              const actorName = getDisplayName(notification.actor);
-
-              return (
-                <article
-                  className={notification.isRead ? "notification-item" : "notification-item notification-item--unread"}
-                  key={notification.id}
-                >
-                  <Link className="notification-item__content" onClick={() => { if (!notification.isRead) { onMarkRead(notification.id); } onClose?.(); }} to={destination}>
-                    <img
-                      alt={actorName}
-                      className="notification-item__avatar"
-                      src={getAvatarForUser(notification.actor, actorName)}
-                    />
-                    <div className="notification-item__copy">
-                      <p>{getNotificationLabel(notification)}</p>
-                      <span>{formatRelativeTime(notification.createdAt)}</span>
-                    </div>
-                  </Link>
-                  <div className="notification-item__actions">
-                    {!notification.isRead ? (
-                      <button className="link-button" onClick={() => onMarkRead(notification.id)} type="button">
-                        Mark read
-                      </button>
-                    ) : (
-                      <span className="notification-item__read">Read</span>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <section className="sidebar-card empty-state notification-empty-state">
-            <span className="material-symbols-outlined">notifications_none</span>
-            <h3>No notifications yet</h3>
-            <p>Likes, comments, follows, and messages will appear here as your app activity grows.</p>
-          </section>
-        )}
+        <div className="activity-content">
+          {isLoading ? (
+            <Loader label="Loading activity..." />
+          ) : notifications.length > 0 ? (
+            <div className="notification-list">
+               {renderGroup("New", grouped.new)}
+               {renderGroup("Earlier this week", grouped.thisWeek)}
+               {renderGroup("This month", grouped.thisMonth)}
+               {renderGroup("Earlier", grouped.earlier)}
+            </div>
+          ) : (
+            <section className="sidebar-card empty-state notification-empty-state">
+              <span className="material-symbols-outlined">notifications_none</span>
+              <h3>No activity yet</h3>
+              <p>When someone likes or comments on one of your posts, you'll see it here.</p>
+            </section>
+          )}
+        </div>
       </aside>
     </>
+  );
+}
+
+function NotificationRow({ notification, onFollowToggle, onMarkRead, onClose }) {
+  const actorName = getDisplayName(notification.actor);
+  const destination = getNotificationDestination(notification);
+  const isFollow = notification.type === 'follow';
+
+  return (
+    <div className={`notification-row ${notification.isRead ? '' : 'unread'}`}>
+      <Link 
+        to={`/profile/${notification.actor?.username}`} 
+        onClick={onClose}
+        className={`notification-avatar-container ${!notification.isRead ? 'has-story' : ''}`}
+      >
+        <img 
+          src={getAvatarForUser(notification.actor, actorName)} 
+          alt={actorName} 
+          className="notification-avatar"
+        />
+      </Link>
+      
+      <Link 
+        className="notification-body" 
+        to={destination}
+        onClick={() => {
+          if (!notification.isRead) onMarkRead(notification.id);
+          onClose();
+        }}
+      >
+        <p className="notification-text">
+          <span className="bold">{actorName}</span> {notification.message || "updated you"}
+          <span className="notification-timestamp">{formatRelativeTime(notification.createdAt, true)}</span>
+        </p>
+      </Link>
+
+      <div className="notification-actions">
+        {isFollow && (
+          <button 
+            className={`follow-back-btn ${notification.actor?.isFollowing ? 'following' : ''}`}
+            onClick={(e) => {
+              e.preventDefault();
+              onFollowToggle(notification.actor.id || notification.actor._id);
+            }}
+          >
+            {notification.actor?.isFollowing ? 'Following' : 'Follow Back'}
+          </button>
+        )}
+        {!notification.isRead && <div className="unread-dot-indicator" />}
+      </div>
+    </div>
   );
 }

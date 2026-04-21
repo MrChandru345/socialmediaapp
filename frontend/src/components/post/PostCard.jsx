@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import ShareModal from "../common/ShareModal";
 
 import { useAuth } from "../../hooks/useAuth";
 import { postService } from "../../services/postService";
@@ -28,6 +29,7 @@ export default function PostCard({ onRemove, post }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLikePending, setIsLikePending] = useState(false);
   const [isSavePending, setIsSavePending] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
 
   useEffect(() => {
     setCurrentPost(createOptimisticPost(post));
@@ -149,6 +151,9 @@ export default function PostCard({ onRemove, post }) {
               <span className="material-symbols-outlined">chat_bubble</span>
               <span>{getPostCommentCount(currentPost)}</span>
             </button>
+            <button className="metric-button" type="button" onClick={() => setIsShareOpen(true)}>
+              <span className="material-symbols-outlined">send</span>
+            </button>
           </div>
           <button className="icon-button" disabled={isSavePending} onClick={handleSave} type="button">
             <span
@@ -180,6 +185,17 @@ export default function PostCard({ onRemove, post }) {
           postId={currentPost.id}
         />
       </div>
+      
+      {isShareOpen && (
+        <ShareModal 
+          isOpen={isShareOpen} 
+          onClose={() => setIsShareOpen(false)} 
+          payload={{ 
+            body: "Shared a post", 
+            sharedPost: currentPost._id || currentPost.id 
+          }} 
+        />
+      )}
     </article>
   );
 }

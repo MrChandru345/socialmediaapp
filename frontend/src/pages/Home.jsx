@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import OnlineUsers from "../components/chat/OnlineUsers";
 import Loader from "../components/common/Loader";
 import Button from "../components/common/Button";
 import CreatePostModal from "../components/post/CreatePostModal";
@@ -15,10 +14,6 @@ import { postService } from "../services/postService";
 import { storyService } from "../services/storyService";
 import { userService } from "../services/userService";
 import {
-  buildSnapshotItems,
-  countFeedPosts,
-  countSuggestions,
-  countUniqueAuthors,
   createOptimisticPost,
   getApiErrorMessage,
   getAvatarForUser,
@@ -26,8 +21,7 @@ import {
   getFeedHeading,
   getPostEmptyStateMessage,
   getStoryEmptyStateMessage,
-  getSuggestionEmptyStateMessage,
-  getSuggestionSubtitle
+  getSuggestionEmptyStateMessage
 } from "../utils/helpers";
 
 const initialState = {
@@ -201,12 +195,6 @@ export default function Home() {
     }
   }
 
-  const snapshotItems = buildSnapshotItems({
-    postsCount: countFeedPosts(state.posts),
-    storiesCount: countUniqueAuthors(state.stories),
-    suggestionsCount: countSuggestions(state.suggestions)
-  });
-
   if (state.status === "loading") {
     return <Loader label="Loading your home feed..." />;
   }
@@ -275,41 +263,14 @@ export default function Home() {
         <aside className="info-column">
           <section className="sidebar-card">
             <div className="section-heading">
-              <h3>Feed Snapshot</h3>
-              <span className="status-pill">{state.status === "refreshing" ? "Syncing" : "Live data"}</span>
-            </div>
-            <div className="stack-list">
-              {snapshotItems.map((item) => (
-                <div className="activity-row" key={item.id}>
-                  <div className="activity-row__icon">
-                    <span className="material-symbols-outlined">{item.icon}</span>
-                  </div>
-                  <div>
-                    <p>{item.label}</p>
-                    <span>{item.value}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {state.suggestions.length > 0 ? (
-            <OnlineUsers
-              title="Suggested Creators"
-              users={state.suggestions.map((suggestion) => ({
-                avatar: getAvatarForUser(suggestion, getDisplayName(suggestion)),
-                id: suggestion.id,
-                name: getDisplayName(suggestion),
-                status: getSuggestionSubtitle(suggestion)
-              }))}
-            />
-          ) : null}
-
-          <section className="sidebar-card">
-            <div className="section-heading">
-              <h3>Suggestions</h3>
-              <button className="link-button" onClick={loadHome} type="button">
-                Refresh
+              <h3 style={{ fontSize: "14px", color: "var(--color-text-dim)" }}>Suggested for you</h3>
+              <button 
+                className="link-button" 
+                onClick={loadHome} 
+                type="button" 
+                style={{ fontSize: "12px", fontWeight: "600", color: "var(--color-text)" }}
+              >
+                See all
               </button>
             </div>
 
@@ -324,7 +285,9 @@ export default function Home() {
                       />
                       <div>
                         <strong>{getDisplayName(suggestion)}</strong>
-                        <span>{getSuggestionSubtitle(suggestion)}</span>
+                        <span style={{ fontSize: "12px", color: "var(--color-text-dim)", display: "block" }}>
+                          {suggestion.followedByMutual ? `Followed by ${suggestion.followedByMutual}` : "Suggested for you"}
+                        </span>
                       </div>
                     </Link>
                     <button

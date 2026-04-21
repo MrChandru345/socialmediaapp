@@ -6,8 +6,11 @@ import { useSocketContext } from "../../context/SocketContext";
 import { notificationService } from "../../services/notificationService";
 import { chatService } from "../../services/chatService";
 import { getApiErrorMessage, resolveAvatar } from "../../utils/helpers";
+import { followService } from "../../services/followService";
+import { postService } from "../../services/postService";
 import NotificationBell from "../notification/NotificationBell";
 import NotificationCenter from "../notification/NotificationCenter";
+import PostModal from "../post/PostModal";
 import Button from "./Button";
 
 const navItems = [
@@ -42,6 +45,37 @@ export default function AppShell({ children }) {
   const [notifications, setNotifications] = useState(initialNotificationState);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [selectedPostDetail, setSelectedPostDetail] = useState(null);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const postId = searchParams.get("post");
+
+    if (postId) {
+      if (!selectedPostDetail || selectedPostDetail.id !== postId) {
+        loadPostDetail(postId);
+      }
+    } else {
+      setSelectedPostDetail(null);
+    }
+  }, [location.search]);
+
+  async function loadPostDetail(postId) {
+    try {
+      const post = await postService.getById(postId);
+      setSelectedPostDetail(post);
+    } catch (err) {
+      console.error("Failed to load post detail", err);
+    }
+  }
+
+  function handleClosePostModal() {
+    setSelectedPostDetail(null);
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.delete("post");
+    const newSearch = searchParams.toString();
+    navigate(`${location.pathname}${newSearch ? `?${newSearch}` : ""}`, { replace: true });
+  }
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -142,15 +176,17 @@ export default function AppShell({ children }) {
     }
   }
 
+  const [activeFilter, setActiveFilter] = useState("all");
+  
   function handleOpenNotifications() {
     setIsNotificationOpen(true);
 
     if (!notifications.hasLoaded) {
-      loadNotifications();
+      loadNotifications(activeFilter);
     }
   }
 
-  async function loadNotifications() {
+  async function loadNotifications(type = "all") {
     setNotifications((currentState) => ({
       ...currentState,
       error: "",
@@ -158,7 +194,7 @@ export default function AppShell({ children }) {
     }));
 
     try {
-      const result = await notificationService.list({ limit: 20 });
+      const result = await notificationService.list({ limit: 20, type });
 
       setNotifications({
         error: "",
@@ -175,6 +211,11 @@ export default function AppShell({ children }) {
         isLoading: false
       }));
     }
+  }
+
+  function handleFilterChange(newFilter) {
+    setActiveFilter(newFilter);
+    loadNotifications(newFilter);
   }
 
   async function handleMarkNotificationRead(notificationId) {
@@ -232,6 +273,26 @@ export default function AppShell({ children }) {
         ...currentState,
         error: getApiErrorMessage(caughtError, "Unable to mark all notifications as read.")
       }));
+    }
+  }
+
+  async function handleFollowToggle(userId) {
+    try {
+      const result = await followService.toggle(userId);
+      setNotifications(prev => ({
+        ...prev,
+        items: prev.items.map(item => {
+          if (item.actor?.id === userId || item.actor?._id === userId) {
+            return {
+              ...item,
+              actor: { ...item.actor, isFollowing: result.following }
+            };
+          }
+          return item;
+        })
+      }));
+    } catch (err) {
+      console.error("Follow toggle failed", err);
     }
   }
 
@@ -374,11 +435,20 @@ export default function AppShell({ children }) {
         error={notifications.error}
         isLoading={notifications.isLoading}
         notifications={notifications.items}
+        activeFilter={activeFilter}
+        onFilterChange={handleFilterChange}
+        onFollowToggle={handleFollowToggle}
         onClose={() => setIsNotificationOpen(false)}
         onMarkAllRead={handleMarkAllRead}
         onMarkRead={handleMarkNotificationRead}
         open={isNotificationOpen}
         unreadCount={notifications.unreadCount}
+      />
+
+      <PostModal
+        open={Boolean(selectedPostDetail)}
+        post={selectedPostDetail}
+        onClose={handleClosePostModal}
       />
     </>
   );

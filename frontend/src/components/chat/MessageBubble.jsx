@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect } from "react";
+import { getAvatarForUser } from "../../utils/helpers";
 
 export default function MessageBubble({ 
   message, 
   isMe, 
   onDeleteMessage, 
   onReplyMessage,
+  onForwardMessage,
   onReactToMessage,
   onImageClick,
+  onPostClick,
   currentUserId 
 }) {
   const [showMenu, setShowMenu] = useState(false);
@@ -18,7 +21,8 @@ export default function MessageBubble({
   const menuRef = useRef(null);
   const incoming = !isMe;
   const hasAttachments = message.attachments && message.attachments.length > 0;
-  const hasText = !!message.text;
+  // If the text is exactly 'Shared a post', we hide it since the visual card handles the intent natively unless they wrote a custom message
+  const hasText = message.text && message.text.trim().length > 0 && message.text !== "Shared a post";
 
   const quickEmojis = ["❤️", "😂", "😮", "😢", "🔥", "👍"];
 
@@ -54,6 +58,18 @@ export default function MessageBubble({
         id: message.id,
         text: message.text || (hasAttachments ? "Shared Media" : ""),
         sender: message.senderUsername
+      });
+    }
+  };
+
+  const handleForward = () => {
+    setShowMenu(false);
+    if (onForwardMessage) {
+      onForwardMessage({
+        id: message.id,
+        text: message.text || "",
+        attachments: message.attachments || [],
+        sharedPost: message.sharedPost || null
       });
     }
   };
@@ -119,6 +135,69 @@ export default function MessageBubble({
             <div className="reply-preview-bubble">
               <p>{message.replyTo.body || "Attachment"}</p>
             </div>
+          </div>
+        )}
+
+        {message.sharedPost && (
+          <div className="message-shared-post-wrapper">
+            {typeof message.sharedPost === "object" && message.sharedPost.id ? (
+              <div 
+                className={`message-shared-post-card ${incoming ? "message-shared-post-card--incoming" : "message-shared-post-card--outgoing"}`}
+                onClick={() => onPostClick?.(message.sharedPost)}
+                style={{ cursor: 'pointer' }}
+              >
+                  {/* Card Header: avatar + username */}
+                  <div className="shared-post-card__header">
+                    <img 
+                      src={getAvatarForUser(message.sharedPost.author, message.sharedPost.author?.username || "User")}
+                      alt={message.sharedPost.author?.username || "User"}
+                      className="shared-post-card__avatar"
+                    />
+                    <span className="shared-post-card__username">
+                      {message.sharedPost.author?.username || "Unknown"}
+                    </span>
+                  </div>
+
+                  {/* Post Image */}
+                  {(() => {
+                    const media = Array.isArray(message.sharedPost.media) ? message.sharedPost.media[0] : message.sharedPost.media;
+                    if (!media) return (
+                      <div className="shared-post-card__no-media">
+                        <span className="material-symbols-outlined">image</span>
+                      </div>
+                    );
+
+                    return (
+                      <div className="shared-post-card__media">
+                        {media.type === "video" ? (
+                          <div style={{ position: 'relative' }}>
+                            <video src={media.url} className="shared-post-card__img" />
+                            <span className="material-symbols-outlined shared-post-card__play">play_circle</span>
+                          </div>
+                        ) : (
+                          <img src={media.url} alt="Post" className="shared-post-card__img" />
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Caption */}
+                  {message.sharedPost.caption && (
+                    <div className="shared-post-card__caption">
+                      <strong>{message.sharedPost.author?.username}</strong>{" "}
+                      {message.sharedPost.caption.length > 80
+                        ? message.sharedPost.caption.slice(0, 80) + "..."
+                        : message.sharedPost.caption
+                      }
+                    </div>
+                  )}
+                </div>
+            ) : (
+              <div className={`message-bubble ${incoming ? "message-bubble--incoming" : "message-bubble--outgoing"}`} style={{ fontStyle: 'italic', color: 'var(--text-soft)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility_off</span>
+                <span>Post unavailable</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -278,6 +357,7 @@ export default function MessageBubble({
 
         {showMenu && (
           <div className="message-actions-menu">
+            <button className="neutral" onClick={handleForward}>Forward</button>
             {isMe && <button className="danger" onClick={() => handleAction("unsend")}>Unsend</button>}
             <button className="danger" onClick={() => handleAction("delete_for_me")}>Delete for me</button>
           </div>

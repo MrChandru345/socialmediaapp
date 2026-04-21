@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 
 import { useAuth } from "../../hooks/useAuth";
+import { storyService } from "../../services/storyService";
 import {
   getApiErrorMessage,
   getStoryAvatar,
@@ -11,6 +12,7 @@ import {
   isVideoMedia
 } from "../../utils/helpers";
 import Button from "../common/Button";
+import StoryViewersList from "./StoryViewersList";
 
 const STORY_DURATION = 10000; // 10 seconds for images
 
@@ -23,6 +25,7 @@ export default function StoryViewerModal({ group, onClose, onDeleteStory, open }
   const [isPaused, setIsPaused] = useState(false);
   const [tapStartTime, setTapStartTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
+  const [isViewersListOpen, setIsViewersListOpen] = useState(false);
   
   const videoRef = useRef(null);
 
@@ -32,6 +35,7 @@ export default function StoryViewerModal({ group, onClose, onDeleteStory, open }
   }, [group]);
   
   const currentStory = stories[currentIndex];
+  const isOwnStoryGroup = group && user ? isOwnResource(group.author?.id, user?.id) : false;
 
   useEffect(() => {
     if (open) {
@@ -40,8 +44,25 @@ export default function StoryViewerModal({ group, onClose, onDeleteStory, open }
       setError("");
       setRemovingStoryId("");
       setVideoDuration(0);
+      setIsViewersListOpen(false);
     }
   }, [group, open]);
+
+  useEffect(() => {
+    if (open && currentStory && !isOwnStoryGroup) {
+      storyService.view(currentStory.id).catch(() => {});
+    }
+  }, [currentStory?.id, open, isOwnStoryGroup]);
+
+  useEffect(() => {
+    if (isViewersListOpen) {
+       setIsPaused(true);
+       if (videoRef.current) videoRef.current.pause();
+    } else {
+       setIsPaused(false);
+       if (videoRef.current) videoRef.current.play().catch(() => {});
+    }
+  }, [isViewersListOpen]);
 
   function handleNext() {
     setVideoDuration(0);
@@ -90,8 +111,6 @@ export default function StoryViewerModal({ group, onClose, onDeleteStory, open }
   };
 
   if (!group || !open) return null;
-
-  const isOwnStoryGroup = isOwnResource(group.author?.id, user?.id);
 
   async function handleDelete(storyId) {
     setRemovingStoryId(storyId);
@@ -201,18 +220,38 @@ export default function StoryViewerModal({ group, onClose, onDeleteStory, open }
               <div className="story-fullscreen-meta instagram-story-meta" style={{ zIndex: 10 }}>
                 {currentStory.caption ? <div className="story-caption">{currentStory.caption}</div> : null}
                 
-                {isOwnStoryGroup ? (
-                  <Button
-                    disabled={removingStoryId === currentStory.id}
-                    onClick={() => handleDelete(currentStory.id)}
-                    size="sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <span className="material-symbols-outlined" style={{color: 'white'}}>delete</span>
-                  </Button>
-                ) : null}
+                <div className="story-viewer-actions">
+                  {isOwnStoryGroup && (
+                    <button 
+                      className="story-viewers-count-btn" 
+                      onClick={() => setIsViewersListOpen(true)}
+                      type="button"
+                    >
+                      <span className="material-symbols-outlined">visibility</span>
+                      <span className="count">{currentStory?.viewersCount || 0}</span>
+                    </button>
+                  )}
+
+                  {isOwnStoryGroup ? (
+                    <Button
+                      disabled={removingStoryId === currentStory.id}
+                      onClick={() => handleDelete(currentStory.id)}
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <span className="material-symbols-outlined" style={{color: 'white'}}>delete</span>
+                    </Button>
+                  ) : null}
+                </div>
               </div>
+
+              {isViewersListOpen && (
+                <StoryViewersList 
+                  storyId={currentStory.id} 
+                  onClose={() => setIsViewersListOpen(false)} 
+                />
+              )}
             </div>
           )}
         </div>

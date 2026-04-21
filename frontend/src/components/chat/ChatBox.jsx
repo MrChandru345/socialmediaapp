@@ -7,7 +7,9 @@ import { useSocketContext } from "../../context/SocketContext";
 import { chatService } from "../../services/chatService";
 import { userService } from "../../services/userService";
 import { getAvatarForUser } from "../../utils/helpers";
+import ShareModal from "../common/ShareModal";
 import MessageBubble from "./MessageBubble";
+import PostModal from "../post/PostModal";
 
 export default function ChatBox() {
   const { user } = useAuthContext();
@@ -26,6 +28,9 @@ export default function ChatBox() {
   const [deletingConversationId, setDeletingConversationId] = useState(null); // ID for custom delete confirm
   const convMenuRef = useRef(null);
   const [replyingToMessage, setReplyingToMessage] = useState(null);
+  const [messageToForward, setMessageToForward] = useState(null);
+  const [selectedPostForModal, setSelectedPostForModal] = useState(null);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -434,6 +439,11 @@ export default function ChatBox() {
     // focus input?
   }
 
+  function handlePostClick(post) {
+    setSelectedPostForModal(post);
+    setIsPostModalOpen(true);
+  }
+
   function handleEmojiClick(emojiObject) {
     setDraft((prev) => prev + emojiObject.emoji);
   }
@@ -806,6 +816,8 @@ export default function ChatBox() {
                   key={message.id || message._id}
                   onDeleteMessage={handleDeleteMessage}
                   onReplyMessage={handleReplyMessage}
+                  onForwardMessage={setMessageToForward}
+                  onPostClick={handlePostClick}
                   onReactToMessage={handleReactToMessage}
                   onImageClick={(url) => setViewerImage(url)}
                   message={{
@@ -818,7 +830,8 @@ export default function ChatBox() {
                     senderId: message.sender.id || message.sender._id,
                     senderUsername: message.sender.username,
                     replyTo: message.replyTo,
-                    reactions: message.reactions || []
+                    reactions: message.reactions || [],
+                    sharedPost: message.sharedPost || null
                   }}
                 />
               ))}
@@ -1103,7 +1116,7 @@ export default function ChatBox() {
               Delete Note
             </button>
             <button 
-              className="btn-cancel" 
+              className="btn-ghost" 
               onClick={() => setShowNoteDeleteConfirm(null)}
             >
               Cancel
@@ -1111,6 +1124,18 @@ export default function ChatBox() {
           </div>
         </div>
       )}
+
+      {messageToForward && (
+        <ShareModal
+          isOpen={!!messageToForward}
+          onClose={() => setMessageToForward(null)}
+          payload={{
+            body: messageToForward.text,
+            attachments: messageToForward.attachments
+          }}
+        />
+      )}
+
 
       {selectedNoteForReply && (
         <div className="note-modal-overlay" onClick={() => setSelectedNoteForReply(null)}>
@@ -1283,6 +1308,11 @@ export default function ChatBox() {
           />
         </div>
       )}
+      <PostModal 
+        open={isPostModalOpen}
+        post={selectedPostForModal}
+        onClose={() => setIsPostModalOpen(false)}
+      />
     </section>
   );
 }

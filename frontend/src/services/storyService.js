@@ -40,5 +40,13 @@ export const storyService = {
   async remove(storyId) {
     const response = await api.delete(`/stories/${storyId}`);
     return response.data.data;
+  },
+  async view(storyId) {
+    const response = await api.post(`/stories/${storyId}/view`);
+    return response.data.data;
+  },
+  async getViewers(storyId) {
+    const response = await api.get(`/stories/${storyId}/viewers`);
+    return response.data.data;
   }
 };

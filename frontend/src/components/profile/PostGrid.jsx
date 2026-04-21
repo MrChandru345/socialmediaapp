@@ -1,20 +1,53 @@
 import Button from "../common/Button";
+import Loader from "../common/Loader";
 import { getPostMedia, isVideoMedia, getPostLikeCount, getPostCommentCount } from "../../utils/helpers";
 
-export default function PostGrid({ posts, isOwnProfile, onCreatePost, activeTab, onPostClick }) {
-  if (activeTab !== 'posts') {
+export default function PostGrid({ posts = [], isOwnProfile, onCreatePost, activeTab, onPostClick, status = 'ready' }) {
+  if (status === 'loading') {
     return (
-      <section className="sidebar-card empty-state modern-glass radius-xl">
-        <span className="material-symbols-outlined" style={{ fontSize: '3rem', color: 'var(--text-muted)' }}>
-          {activeTab === 'saved' ? 'bookmark_border' : 'assignment_ind'}
-        </span>
-        <h3>No {activeTab} posts</h3>
-        <p>This user hasn't {activeTab === 'saved' ? 'saved' : 'been tagged in'} any posts yet.</p>
-      </section>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem 0', width: '100%' }}>
+        <Loader label="Loading content..." />
+      </div>
     );
   }
 
   if (posts.length === 0) {
+    if (activeTab === 'saved') {
+      return (
+        <section className="sidebar-card empty-state modern-glass radius-xl">
+          <div className="empty-state-icon" style={{ 
+            width: '80px', height: '80px', borderRadius: '50%', 
+            border: '2px solid var(--text)', display: 'flex', 
+            alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' 
+          }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '2.5rem' }}>bookmark_border</span>
+          </div>
+          <h3 style={{ fontSize: '1.5rem', margin: '0 0 0.5rem 0' }}>Save photos and videos</h3>
+          <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-muted)' }}>
+            When you save photos and videos, they'll appear here. <br/> Only you can see what you've saved.
+          </p>
+        </section>
+      );
+    }
+    
+    if (activeTab === 'tagged') {
+        return (
+          <section className="sidebar-card empty-state modern-glass radius-xl">
+            <div className="empty-state-icon" style={{ 
+              width: '80px', height: '80px', borderRadius: '50%', 
+              border: '2px solid var(--text)', display: 'flex', 
+              alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' 
+            }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '2.5rem' }}>assignment_ind</span>
+            </div>
+            <h3 style={{ fontSize: '1.5rem', margin: '0 0 0.5rem 0' }}>Photos of you</h3>
+            <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-muted)' }}>
+              When people tag you in photos, they'll appear here.
+            </p>
+          </section>
+        );
+    }
+
     return (
       <section className="sidebar-card empty-state modern-glass radius-xl">
         <div className="empty-state-icon" style={{ 

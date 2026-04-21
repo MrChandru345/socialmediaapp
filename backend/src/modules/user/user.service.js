@@ -1,5 +1,6 @@
 const Post = require("../post/post.model");
 const User = require("./user.model");
+const { getOnlineUsers } = require("../chat/socket");
 const { isCloudinaryConfigured, uploadBuffer } = require("../../config/cloudinary");
 const {
   AppError,
@@ -17,6 +18,7 @@ function sanitizeProfile(user, viewerId, postCount) {
     followersCount: user.followers?.length || 0,
     followingCount: user.following?.length || 0,
     postCount,
+    isOnline: getOnlineUsers().includes(String(user._id)),
     isFollowing: viewerId
       ? user.followers?.some((entry) => String(entry) === String(viewerId))
       : false
@@ -200,6 +202,7 @@ async function searchUsers(query, viewerId) {
     ...sanitizeUser(user),
     followersCount: user.followers?.length || 0,
     followingCount: user.following?.length || 0,
+    isOnline: getOnlineUsers().includes(String(user._id)),
     isFollowing: viewerId
       ? user.followers?.some((entry) => String(entry) === String(viewerId))
       : false
@@ -207,13 +210,18 @@ async function searchUsers(query, viewerId) {
 }
 
 async function getSuggestions(userId) {
-  const currentUser = await User.findById(userId).select("following").lean();
+  const currentUser = await User.findById(userId)
+    .populate("following", "username")
+    .lean();
 
   if (!currentUser) {
     throw new AppError(404, "User not found");
   }
 
-  const excludedIds = [userId, ...(currentUser.following || [])];
+  const followingList = currentUser.following || [];
+  const followingMap = new Map(followingList.map((f) => [String(f._id), f.username]));
+  const excludedIds = [userId, ...followingList.map((f) => f._id)];
+
   const users = await User.find({
     _id: { $nin: excludedIds }
   })
@@ -222,10 +230,24 @@ async function getSuggestions(userId) {
     .limit(8)
     .lean();
 
-  return users.map((user) => ({
-    ...sanitizeUser(user),
-    followersCount: user.followers?.length || 0
-  }));
+  const onlineUserIds = getOnlineUsers();
+  return users.map((user) => {
+    let followedByMutual = null;
+    const followersStr = (user.followers || []).map((id) => String(id));
+    for (const fId of followersStr) {
+      if (followingMap.has(fId)) {
+        followedByMutual = followingMap.get(fId);
+        break;
+      }
+    }
+
+    return {
+      ...sanitizeUser(user),
+      followersCount: user.followers?.length || 0,
+      isOnline: onlineUserIds.includes(String(user._id)),
+      followedByMutual
+    };
+  });
 }
 
 async function getFollowing(userId) {
@@ -237,10 +259,12 @@ async function getFollowing(userId) {
     throw new AppError(404, "User not found");
   }
 
+  const onlineUserIds = getOnlineUsers();
   return (currentUser.following || []).map((user) => ({
     ...sanitizeUser(user),
     followersCount: user.followers?.length || 0,
-    isFollowing: true
+    isFollowing: true,
+    isOnline: onlineUserIds.includes(String(user._id))
   }));
 }
 
@@ -279,10 +303,12 @@ async function getUserFollowers(viewerId, targetId) {
 
   if (!targetUser) throw new AppError(404, "User not found");
 
+  const onlineUserIds = getOnlineUsers();
   return (targetUser.followers || []).map((u) => ({
     ...sanitizeUser(u),
     followersCount: u.followers?.length || 0,
-    isFollowing: viewerId ? u.followers?.some((fid) => String(fid) === String(viewerId)) : false
+    isFollowing: viewerId ? u.followers?.some((fid) => String(fid) === String(viewerId)) : false,
+    isOnline: onlineUserIds.includes(String(u._id))
   }));
 }
 
@@ -293,11 +319,44 @@ async function getUserFollowing(viewerId, targetId) {
 
   if (!targetUser) throw new AppError(404, "User not found");
 
+  const onlineUserIds = getOnlineUsers();
   return (targetUser.following || []).map((u) => ({
     ...sanitizeUser(u),
     followersCount: u.followers?.length || 0,
-    isFollowing: viewerId ? u.followers?.some((fid) => String(fid) === String(viewerId)) : false
+    isFollowing: viewerId ? u.followers?.some((fid) => String(fid) === String(viewerId)) : false,
+    isOnline: onlineUserIds.includes(String(u._id))
   }));
+}
+
+async function getSavedPosts(userId, query) {
+  const { page, limit, skip } = parsePagination(query);
+  
+  const user = await User.findById(userId)
+    .populate({
+      path: "savedPosts",
+      options: {
+        sort: { createdAt: -1 },
+        skip,
+        limit
+      },
+      populate: {
+        path: "author",
+        select: "username fullName avatar location role"
+      }
+    })
+    .lean();
+
+  if (!user) {
+    throw new AppError(404, "User not found");
+  }
+
+  const savedPostsCount = await User.findById(userId).select("savedPosts").lean();
+  const total = savedPostsCount?.savedPosts?.length || 0;
+
+  return {
+    items: (user.savedPosts || []).map((post) => formatProfilePost(post, userId)),
+    meta: buildPaginationMeta(page, limit, total)
+  };
 }
 
 module.exports = {
@@ -310,5 +369,6 @@ module.exports = {
   blockUser,
   reportUser,
   getUserFollowers,
-  getUserFollowing
+  getUserFollowing,
+  getSavedPosts
 };
