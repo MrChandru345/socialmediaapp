@@ -724,6 +724,13 @@ strong {
   width: 100%;
 }
 
+/* Chat page: fill the full area, no padding/max-width restrictions */
+.shell-content:has(.chat-layout) {
+  padding: 0;
+  max-width: 100%;
+  margin: 0;
+}
+
 .mobile-nav {
   display: none;
 }
@@ -883,8 +890,6 @@ strong {
 .post-card,
 .sidebar-card,
 .profile-hero,
-.chat-sidebar,
-.chat-window,
 .explore-card,
 .metric-card,
 .hero-panel,
@@ -892,6 +897,14 @@ strong {
   background: var(--surface-card);
   border-radius: var(--radius-md);
   border: 1px solid var(--surface-outline);
+}
+
+/* Chat sidebar and window explicitly use their own styling */
+.chat-sidebar,
+.chat-window {
+  background: var(--background);
+  border-radius: 0;
+  border: none;
 }
 
 .sidebar-card {
@@ -1820,12 +1833,14 @@ strong {
 }
 
 .chat-sidebar {
-  width: 320px;
+  width: 380px;
+  min-width: 320px;
   border-right: 1px solid var(--surface-outline);
   display: flex;
   flex-direction: column;
   background: var(--background);
   padding: 0;
+  flex-shrink: 0;
 }
 
 .chat-sidebar__header {
@@ -2204,8 +2219,8 @@ strong {
 .conversation-card {
   display: flex;
   align-items: center;
-  padding: 8px 24px;
-  gap: 16px;
+  padding: 8px 20px;
+  gap: 12px;
   background: transparent;
   border: none;
   width: 100%;
@@ -2224,8 +2239,8 @@ strong {
 
 .conversation-card__avatar {
   position: relative;
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   flex-shrink: 0;
 }
 
@@ -2256,8 +2271,8 @@ strong {
 }
 
 .conversation-card__name-row strong {
-  font-size: 0.95rem;
-  font-weight: 400;
+  font-size: 0.925rem;
+  font-weight: 500;
   color: var(--text);
 }
 
@@ -2265,7 +2280,7 @@ strong {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--text-soft);
 }
 

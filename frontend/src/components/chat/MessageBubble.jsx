@@ -314,7 +314,7 @@ export default function MessageBubble({
 
         <div className="message-bubble-row">
           <span className="message-timestamp message-timestamp--hover">
-            {formatMessageTime(message.createdAt || message.time)}
+            {message.time}
             {isMe && message.seen && " · Seen"}
           </span>
         </div>

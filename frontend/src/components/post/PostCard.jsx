@@ -151,7 +151,15 @@ export default function PostCard({ onRemove, post }) {
               <span className="material-symbols-outlined">chat_bubble</span>
               <span>{getPostCommentCount(currentPost)}</span>
             </button>
-            <button className="metric-button" type="button" onClick={() => setIsShareOpen(true)}>
+            <button 
+              className="metric-button" 
+              type="button" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsShareOpen(true);
+              }}
+            >
               <span className="material-symbols-outlined">send</span>
             </button>
           </div>
