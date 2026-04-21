@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { getAvatarForUser } from "../../utils/helpers";
+import { getAvatarForUser, formatMessageTime } from "../../utils/helpers";
 
 export default function MessageBubble({ 
   message, 
@@ -312,9 +312,12 @@ export default function MessageBubble({
           </div>
         )}
 
-        <span className="message-timestamp">
-          {message.time} {isMe && message.seen && " • Seen"}
-        </span>
+        <div className="message-bubble-row">
+          <span className="message-timestamp message-timestamp--hover">
+            {formatMessageTime(message.createdAt || message.time)}
+            {isMe && message.seen && " · Seen"}
+          </span>
+        </div>
       </div>
 
       <div className={`message-actions ${incoming ? "message-actions--incoming" : "message-actions--outgoing"}`} ref={menuRef}>

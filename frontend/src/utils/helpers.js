@@ -62,6 +62,90 @@ export function formatRelativeTime(value) {
   });
 }
 
+/**
+ * Formats a message timestamp:
+ * - Today        → "6:42 PM"
+ * - Yesterday/within this week (< 7 days) → "Sun 6:42 PM"
+ * - Older than 1 week → "Apr 14, 2026, 11:25 PM"
+ */
+export function formatMessageTime(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const now = new Date();
+
+  // Strip times to compare calendar days
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const diffDays = Math.round((today - msgDay) / (1000 * 60 * 60 * 24));
+
+  const timeStr = date.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+
+  if (diffDays === 0) {
+    // Today — time only
+    return timeStr;
+  }
+
+  if (diffDays < 7) {
+    // Yesterday or within this week — "Sun 6:42 PM"
+    const dayName = date.toLocaleString("en-US", { weekday: "short" });
+    return `${dayName} ${timeStr}`;
+  }
+
+  // Older than 1 week — "Apr 14, 2026, 11:25 PM"
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true
+  });
+}
+
+/**
+ * Returns a centered date-separator label for chat messages:
+ * - Today     → "Today"
+ * - Yesterday → "Yesterday"
+ * - Within 7 days → "Monday"
+ * - Older     → "Apr 14, 2026"
+ */
+export function formatDateSeparator(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((today - msgDay) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return date.toLocaleString("en-US", { weekday: "long" });
+
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
+export function isSameDay(a, b) {
+  if (!a || !b) return false;
+  const da = new Date(a);
+  const db = new Date(b);
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
+}
+
 export function getDisplayName(user, fallback = "Curator") {
   return user?.fullName || user?.username || fallback;
 }

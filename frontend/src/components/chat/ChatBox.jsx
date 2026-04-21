@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import EmojiPicker from "emoji-picker-react";
 
@@ -6,7 +6,7 @@ import { useAuthContext } from "../../context/AuthContext";
 import { useSocketContext } from "../../context/SocketContext";
 import { chatService } from "../../services/chatService";
 import { userService } from "../../services/userService";
-import { getAvatarForUser } from "../../utils/helpers";
+import { getAvatarForUser, formatDateSeparator, isSameDay } from "../../utils/helpers";
 import ShareModal from "../common/ShareModal";
 import MessageBubble from "./MessageBubble";
 import PostModal from "../post/PostModal";
@@ -809,32 +809,44 @@ export default function ChatBox() {
             </header>
 
             <div className="chat-window__messages">
-              {messages.map((message) => (
-                <MessageBubble
-                  isMe={message.sender.id === user.id}
-                  currentUserId={user.id}
-                  key={message.id || message._id}
-                  onDeleteMessage={handleDeleteMessage}
-                  onReplyMessage={handleReplyMessage}
-                  onForwardMessage={setMessageToForward}
-                  onPostClick={handlePostClick}
-                  onReactToMessage={handleReactToMessage}
-                  onImageClick={(url) => setViewerImage(url)}
-                  message={{
-                    id: message.id || message._id,
-                    text: message.body,
-                    time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    avatar: getAvatarForUser(message.sender),
-                    seen: !!message.seenAt,
-                    attachments: message.attachments,
-                    senderId: message.sender.id || message.sender._id,
-                    senderUsername: message.sender.username,
-                    replyTo: message.replyTo,
-                    reactions: message.reactions || [],
-                    sharedPost: message.sharedPost || null
-                  }}
-                />
-              ))}
+              {messages.map((message, index) => {
+                const prevMessage = messages[index - 1];
+                const showSeparator = !prevMessage || !isSameDay(prevMessage.createdAt, message.createdAt);
+
+                return (
+                  <React.Fragment key={message.id || message._id}>
+                    {showSeparator && (
+                      <div className="chat-date-separator">
+                        <span>{formatDateSeparator(message.createdAt)}</span>
+                      </div>
+                    )}
+                    <MessageBubble
+                      isMe={message.sender.id === user.id}
+                      currentUserId={user.id}
+                      onDeleteMessage={handleDeleteMessage}
+                      onReplyMessage={handleReplyMessage}
+                      onForwardMessage={setMessageToForward}
+                      onPostClick={handlePostClick}
+                      onReactToMessage={handleReactToMessage}
+                      onImageClick={(url) => setViewerImage(url)}
+                      message={{
+                        id: message.id || message._id,
+                        text: message.body,
+                        createdAt: message.createdAt,
+                        time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        avatar: getAvatarForUser(message.sender),
+                        seen: !!message.seenAt,
+                        attachments: message.attachments,
+                        senderId: message.sender.id || message.sender._id,
+                        senderUsername: message.sender.username,
+                        replyTo: message.replyTo,
+                        reactions: message.reactions || [],
+                        sharedPost: message.sharedPost || null
+                      }}
+                    />
+                  </React.Fragment>
+                );
+              })}
               {otherUserTyping && (
                 <div className="message-row message-row--incoming">
                   <img alt="Typing indicator" className="message-row__avatar" src={getAvatarForUser(activeConversation.otherUser)} />

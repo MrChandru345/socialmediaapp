@@ -2439,20 +2439,74 @@ strong {
   background: rgba(0, 0, 0, 0.05);
 }
 
-.message-timestamp {
-  font-size: 0.7rem;
+/* ── Date separator (centered between day groups) ────────────────── */
+.chat-date-separator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 16px 0 8px;
+  gap: 12px;
+}
+
+.chat-date-separator::before,
+.chat-date-separator::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--surface-outline);
+  opacity: 0.5;
+}
+
+.chat-date-separator span {
+  font-size: 0.72rem;
+  font-weight: 500;
   color: var(--text-muted);
-  margin-top: 2px;
-  margin-bottom: 4px;
+  background: var(--background);
+  padding: 3px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--surface-outline);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+/* ── Message timestamp — Instagram hover style ────────────────────── */
+.message-bubble-row {
+  display: flex;
+  align-items: center;
+}
+
+.message-timestamp {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.message-timestamp--hover {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  padding: 0 6px;
+}
+
+.message-row:hover .message-timestamp--hover {
+  opacity: 1;
+}
+
+.message-row--outgoing .message-bubble-row {
+  justify-content: flex-end;
+  flex-direction: row-reverse;
+}
+
+.message-row--incoming .message-bubble-row {
+  justify-content: flex-start;
+  flex-direction: row;
 }
 
 .message-row--outgoing .message-timestamp {
-  align-self: flex-end;
   margin-right: 4px;
 }
 
 .message-row--incoming .message-timestamp {
-  align-self: flex-start;
   margin-left: 4px;
 }
 
