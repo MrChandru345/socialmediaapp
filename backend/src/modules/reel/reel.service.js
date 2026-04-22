@@ -1,4 +1,4 @@
-﻿const { isCloudinaryConfigured, uploadBuffer } = require("../../config/cloudinary");
+const { isCloudinaryConfigured, uploadBuffer } = require("../../config/cloudinary");
 const {
   AppError,
   buildPaginationMeta,
@@ -87,14 +87,20 @@ async function createReel(userId, payload, file) {
 
 async function getReels(query, viewerId) {
   const { page, limit, skip } = parsePagination(query);
+  const filter = {};
+  
+  if (query.author) {
+    filter.author = query.author;
+  }
+
   const [reels, total] = await Promise.all([
-    Reel.find({})
+    Reel.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .populate("author", "username fullName avatar role")
       .lean(),
-    Reel.countDocuments({})
+    Reel.countDocuments(filter)
   ]);
 
   return {

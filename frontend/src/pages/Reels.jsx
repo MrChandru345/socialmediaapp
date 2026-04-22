@@ -1,11 +1,25 @@
 import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import ReelPlayer from "../components/reel/ReelPlayer";
 import { reelService } from "../services/reelService";
 
 export default function Reels() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [reels, setReels] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    document.body.classList.add("no-global-scroll");
+    return () => document.body.classList.remove("no-global-scroll");
+  }, []);
+
+  function handlePostClick(post) {
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.set("post", post.id);
+    navigate(`${location.pathname}?${searchParams.toString()}`);
+  }
 
   useEffect(() => {
     async function getReels() {
@@ -33,7 +47,7 @@ export default function Reels() {
       ) : reels.length > 0 ? (
         <div className="reels-scroll-snap">
           {reels.map((reel) => (
-            <ReelPlayer key={reel.id} reel={reel} />
+            <ReelPlayer key={reel.id} reel={reel} onPostClick={handlePostClick} />
           ))}
         </div>
       ) : (

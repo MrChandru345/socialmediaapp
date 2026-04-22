@@ -12,6 +12,7 @@ import NotificationBell from "../notification/NotificationBell";
 import NotificationCenter from "../notification/NotificationCenter";
 import PostModal from "../post/PostModal";
 import Button from "./Button";
+import AccountSwitcher from "./AccountSwitcher";
 
 const navItems = [
   { label: "Home", icon: "home", to: "/" },
@@ -355,20 +356,12 @@ export default function AppShell({ children }) {
           </nav>
 
           <div className="sidebar-footer">
-            <button className="theme-toggle-btn" onClick={toggleTheme} type="button">
+            <button className="theme-toggle-btn" onClick={toggleTheme} type="button" style={{ marginBottom: '12px' }}>
               <span className="material-symbols-outlined">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
               <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
             </button>
-            <div className="user-chip" onClick={() => navigate('/profile')}>
-              <img alt={displayName} className="user-chip__avatar" src={avatar} />
-              <div className="user-chip__info">
-                <strong>{displayName}</strong>
-                <span>@{user?.username || "guest"}</span>
-              </div>
-            </div>
-            <Button className="sidebar-cta" icon="logout" onClick={logout} type="button">
-              Logout
-            </Button>
+            
+            <AccountSwitcher />
           </div>
         </aside>
 

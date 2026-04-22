@@ -10,7 +10,8 @@ const {
   deleteNote,
   getTotalUnreadCount,
   toggleMessageReaction,
-  clearConversation
+  clearConversation,
+  getConversationMedia
 } = require("./chat.service");
 
 const getConversationList = asyncHandler(async (req, res) => {
@@ -91,6 +92,11 @@ const removeConversation = asyncHandler(async (req, res) => {
   res.json({ success: true, data: result });
 });
 
+const getMedia = asyncHandler(async (req, res) => {
+  const media = await getConversationMedia(req.user._id, req.params.withUserId);
+  res.json({ success: true, data: media });
+});
+
 module.exports = {
   createMessage,
   getConversationList,
@@ -102,5 +108,6 @@ module.exports = {
   removeNote,
   getUnreadCount,
   reactToMessage,
-  removeConversation
+  removeConversation,
+  getMedia
 };

@@ -150,6 +150,14 @@ export function getDisplayName(user, fallback = "Curator") {
   return user?.fullName || user?.username || fallback;
 }
 
+export function formatLastSeen(user) {
+  if (user?.isOnline) return "Active now";
+  if (!user?.lastSeen) return "";
+  
+  const relative = formatRelativeTime(user.lastSeen);
+  return `Active ${relative}`;
+}
+
 export function getHandle(user) {
   return user?.username ? `@${user.username}` : "@curator";
 }
@@ -159,7 +167,12 @@ export function getUserLocation(user) {
 }
 
 export function resolvePrimaryMedia(post) {
+  if (post?.video) return post.video;
   return post?.media?.[0] || null;
+}
+
+export function isReel(post) {
+  return Boolean(post?.isReel || post?.video);
 }
 
 export function truncateText(value, maxLength = 140) {
@@ -435,4 +448,27 @@ export function withDelay(value, ms = 350) {
   return new Promise((resolve) => {
     window.setTimeout(() => resolve(value), ms);
   });
+}
+export async function downloadResource(url, filename = `file_${Date.now()}`) {
+  if (!url) return;
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const objectUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(objectUrl);
+  } catch (error) {
+    console.error("Download failed:", error);
+    // Fallback: Try opening in a new tab if fetch fails (e.g. CORS)
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.download = filename;
+    link.click();
+  }
 }

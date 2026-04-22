@@ -76,10 +76,46 @@ async function findProfileUser(identifier) {
   return user;
 }
 
+async function getMutualFollowers(viewerId, targetId) {
+  if (!viewerId || !targetId || String(viewerId) === String(targetId)) {
+    return null;
+  }
+
+  const [viewer, target] = await Promise.all([
+    User.findById(viewerId).select("following").lean(),
+    User.findById(targetId).select("followers").lean()
+  ]);
+
+  if (!viewer || !target) return null;
+
+  const viewerFollowing = new Set((viewer.following || []).map(id => String(id)));
+  const targetFollowers = (target.followers || []).map(id => String(id));
+
+  const mutualIds = targetFollowers.filter(id => viewerFollowing.has(id));
+
+  if (mutualIds.length === 0) return null;
+
+  const mutualUsers = await User.find({ _id: { $in: mutualIds } })
+    .select("username fullName avatar")
+    .limit(3)
+    .lean();
+
+  return {
+    users: mutualUsers.map(u => sanitizeUser(u)),
+    totalCount: mutualIds.length
+  };
+}
+
 async function getProfile(identifier, viewerId) {
   const user = await findProfileUser(identifier);
   const postCount = await Post.countDocuments({ author: user._id });
-  return sanitizeProfile(user, viewerId, postCount);
+  const profile = sanitizeProfile(user, viewerId, postCount);
+  
+  if (viewerId && String(user._id) !== String(viewerId)) {
+    profile.mutualFollowers = await getMutualFollowers(viewerId, user._id);
+  }
+  
+  return profile;
 }
 
 async function getProfilePosts(identifier, viewerId, query) {

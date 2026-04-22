@@ -10,6 +10,11 @@ export const chatService = {
     const response = await api.get("/chat/unread-count");
     return response.data.data;
   },
+
+  async getMedia(userId) {
+    const response = await api.get(`/chat/${userId}/media`);
+    return response.data.data;
+  },
   
   async getMessages(userId, params = {}) {
     const response = await api.get(`/chat/${userId}`, { params });

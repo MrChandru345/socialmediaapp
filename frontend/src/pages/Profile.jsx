@@ -5,10 +5,14 @@ import EditProfileModal from "../components/profile/EditProfileModal";
 import ProfileHeader from "../components/profile/ProfileHeader";
 import ProfileTabs from "../components/profile/ProfileTabs";
 import PostGrid from "../components/profile/PostGrid";
+import { reelService } from "../services/reelService";
 import NetworkModal from "../components/profile/NetworkModal";
 import PostModal from "../components/post/PostModal";
 import Button from "../components/common/Button";
 import Loader from "../components/common/Loader";
+import CreationChoiceModal from "../components/profile/CreationChoiceModal";
+import CreateReelModal from "../components/post/CreateReelModal";
+import CreatePostModal from "../components/post/CreatePostModal";
 import { useAuth } from "../hooks/useAuth";
 import { followService } from "../services/followService";
 import { userService } from "../services/userService";
@@ -21,6 +25,7 @@ const initialState = {
   savedPosts: [],
   savedStatus: "idle",
   profile: null,
+  reels: [],
   status: "loading"
 };
 
@@ -35,6 +40,9 @@ export default function Profile() {
   const [activeTab, setActiveTab] = useState('posts');
   const [networkModal, setNetworkModal] = useState({ open: false, type: '', title: '' });
   const [selectedPost, setSelectedPost] = useState(null);
+  const [isChoiceOpen, setIsChoiceOpen] = useState(false);
+  const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
+  const [isCreateReelOpen, setIsCreateReelOpen] = useState(false);
 
   const profileIdentifier = identifier || user?.username || user?.id;
   const isOwnProfile = Boolean(state.profile?.id && user?.id && state.profile.id === user.id);
@@ -48,7 +56,10 @@ export default function Profile() {
     if (activeTab === 'saved' && state.savedStatus === 'idle') {
       loadSavedPosts();
     }
-  }, [activeTab, state.savedStatus]);
+    if (activeTab === 'reels' && state.reels.length === 0) {
+      // Logic to load reels if needed, or they might be part of initial profile load
+    }
+  }, [activeTab, state.savedStatus, state.reels.length]);
 
   async function loadProfile() {
     if (!profileIdentifier) return;
@@ -60,9 +71,11 @@ export default function Profile() {
     }));
 
     try {
-      const [profile, posts] = await Promise.all([
-        userService.getProfile(profileIdentifier),
-        userService.getPosts(profileIdentifier, { limit: 12 })
+      const profile = await userService.getProfile(profileIdentifier);
+      
+      const [posts, reels] = await Promise.all([
+        userService.getPosts(profileIdentifier, { limit: 12 }),
+        reelService.getAll({ author: profile.id, limit: 12 }).catch(err => ({ items: [] }))
       ]);
 
       setState(prev => ({
@@ -70,6 +83,7 @@ export default function Profile() {
         error: "",
         posts: posts.items || [],
         postsMeta: posts.meta || null,
+        reels: reels?.items || [],
         profile,
         status: "ready",
         // Reset saved status on profile change
@@ -143,13 +157,28 @@ export default function Profile() {
     setIsEditOpen(false);
   }
 
-  function openCreatePost() {
-    navigate("/", {
-      state: {
-        from: identifier ? `/profile/${identifier}` : "/profile",
-        openCreatePostToken: Date.now()
-      }
-    });
+  function handleCreationChoice() {
+    setIsChoiceOpen(true);
+  }
+
+  function handlePostCreated(newPost) {
+    setState(prev => ({
+      ...prev,
+      posts: [newPost, ...prev.posts]
+    }));
+    setActiveTab('posts');
+    setIsCreatePostOpen(false);
+  }
+
+  function handleReelCreated(newReel) {
+    setState(prev => ({
+      ...prev,
+      reels: [newReel, ...prev.reels],
+      // If we show reels in main feed too, add there
+      posts: [newReel, ...prev.posts] 
+    }));
+    setActiveTab('reels');
+    setIsCreateReelOpen(false);
   }
 
 
@@ -213,7 +242,7 @@ export default function Profile() {
           onToggleFollow={handleToggleFollow}
           onShareProfile={handleShareProfile}
           onMessage={() => navigate(`/chat?userId=${state.profile.id}`)}
-          onCreatePost={openCreatePost}
+          onCreatePost={handleCreationChoice}
           onFollowersClick={() => setNetworkModal({ open: true, type: 'followers', title: 'Followers' })}
           onFollowingClick={() => setNetworkModal({ open: true, type: 'following', title: 'Following' })}
         />
@@ -222,14 +251,16 @@ export default function Profile() {
           <section className="profile-feed" style={{ width: '100%' }}>
             <ProfileTabs activeTab={activeTab} onTabChange={setActiveTab} isOwnProfile={isOwnProfile} />
             
-            <PostGrid 
-              posts={activeTab === 'saved' ? state.savedPosts : state.posts} 
-              isOwnProfile={isOwnProfile} 
-              onCreatePost={openCreatePost} 
-              activeTab={activeTab}
-              onPostClick={(post) => setSelectedPost(post)}
-              status={activeTab === 'saved' ? state.savedStatus : 'ready'}
-            />
+            <div key={activeTab} className="tab-content-wrapper animate-slide-up">
+              <PostGrid 
+                posts={activeTab === 'saved' ? state.savedPosts : (activeTab === 'reels' ? state.reels : state.posts)} 
+                isOwnProfile={isOwnProfile} 
+                onCreatePost={handleCreationChoice} 
+                activeTab={activeTab}
+                onPostClick={(post) => setSelectedPost(post)}
+                status={activeTab === 'saved' ? state.savedStatus : 'ready'}
+              />
+            </div>
           </section>
         </div>
       </div>
@@ -240,7 +271,16 @@ export default function Profile() {
         onClose={() => setSelectedPost(null)}
         onPostUpdated={(updated) => {
           setState(prev => {
+            if (updated.deleted) {
+              return {
+                ...prev,
+                posts: prev.posts.filter(p => p.id !== updated.id),
+                reels: prev.reels.filter(p => p.id !== updated.id),
+                savedPosts: prev.savedPosts.filter(p => p.id !== updated.id)
+              };
+            }
             const newPosts = prev.posts.map(p => p.id === updated.id ? { ...p, ...updated } : p);
+            const newReels = prev.reels.map(p => p.id === updated.id ? { ...p, ...updated } : p);
             let newSaved = prev.savedPosts.map(p => p.id === updated.id ? { ...p, ...updated } : p);
             
             if (updated.hasOwnProperty('savedByViewer') && !updated.savedByViewer) {
@@ -250,6 +290,7 @@ export default function Profile() {
             return {
               ...prev,
               posts: newPosts,
+              reels: newReels,
               savedPosts: newSaved
             };
           });
@@ -269,6 +310,25 @@ export default function Profile() {
         onUpdated={handleProfileUpdated}
         open={isEditOpen}
         profile={state.profile}
+      />
+
+      <CreationChoiceModal
+        open={isChoiceOpen}
+        onClose={() => setIsChoiceOpen(false)}
+        onChoosePost={() => setIsCreatePostOpen(true)}
+        onChooseReel={() => setIsCreateReelOpen(true)}
+      />
+
+      <CreatePostModal
+        open={isCreatePostOpen}
+        onClose={() => setIsCreatePostOpen(false)}
+        onCreated={handlePostCreated}
+      />
+
+      <CreateReelModal
+        open={isCreateReelOpen}
+        onClose={() => setIsCreateReelOpen(false)}
+        onCreated={handleReelCreated}
       />
     </>
   );

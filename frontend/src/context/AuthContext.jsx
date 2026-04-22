@@ -11,11 +11,27 @@ import { clearStoredToken, getStoredToken, setStoredToken } from "../services/ap
 
 const AuthContext = createContext(null);
 
+const ACCOUNTS_KEY = "app_accounts";
+
+function getStoredAccounts() {
+  try {
+    const data = localStorage.getItem(ACCOUNTS_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveStoredAccounts(accounts) {
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+}
+
 export function AuthProvider({ children }) {
   const [state, setState] = useState({
     status: "loading",
     token: getStoredToken(),
-    user: null
+    user: null,
+    accounts: getStoredAccounts()
   });
 
   useEffect(() => {
@@ -25,47 +41,53 @@ export function AuthProvider({ children }) {
       const existingToken = getStoredToken();
 
       if (!existingToken) {
-        setState({ status: "ready", token: null, user: null });
+        setState(prev => ({ ...prev, status: "ready", token: null, user: null }));
         return;
       }
 
       try {
         const user = await authService.getCurrentUser();
 
-        if (!isMounted) {
-          return;
-        }
+        if (!isMounted) return;
 
         startTransition(() => {
-          setState({ status: "authenticated", token: existingToken, user });
+          setState(prev => ({ 
+            ...prev, 
+            status: "authenticated", 
+            token: existingToken, 
+            user,
+            // Ensure the current user is in accounts
+            accounts: updateAccounts(prev.accounts, user, existingToken)
+          }));
         });
       } catch (error) {
         clearStoredToken();
-
-        if (!isMounted) {
-          return;
-        }
-
-        setState({ status: "ready", token: null, user: null });
+        if (!isMounted) return;
+        setState(prev => ({ ...prev, status: "ready", token: null, user: null }));
       }
     }
 
     bootstrapAuth();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
+
+  function updateAccounts(accounts, user, token) {
+    const filtered = accounts.filter(a => a.user.id !== user.id);
+    const newList = [{ user, token }, ...filtered];
+    saveStoredAccounts(newList);
+    return newList;
+  }
 
   function applySession(session) {
     setStoredToken(session.token);
-
     startTransition(() => {
-      setState({
+      setState(prev => ({
+        ...prev,
         status: "authenticated",
         token: session.token,
-        user: session.user
-      });
+        user: session.user,
+        accounts: updateAccounts(prev.accounts, session.user, session.token)
+      }));
     });
   }
 
@@ -81,30 +103,58 @@ export function AuthProvider({ children }) {
     return session;
   }
 
-  async function refreshUser() {
-    const user = await authService.getCurrentUser();
+  function switchAccount(userId) {
+    const target = state.accounts.find(a => a.user.id === userId);
+    if (!target) return;
 
-    setState((currentState) => ({
-      ...currentState,
-      user
-    }));
+    setStoredToken(target.token);
+    window.location.reload(); // Hard reload to clear all states/sockets for the new user
+  }
 
-    return user;
+  function addAccount() {
+    // To add an account, we just log out the current one BUT keep it in the accounts list
+    // The login screen will then allow adding a new one
+    clearStoredToken();
+    setState(prev => ({ ...prev, status: "ready", token: null, user: null }));
   }
 
   function logout() {
+    const remaining = state.accounts.filter(a => a.user.id !== state.user?.id);
+    saveStoredAccounts(remaining);
     clearStoredToken();
-    setState({ status: "ready", token: null, user: null });
+
+    if (remaining.length > 0) {
+      setStoredToken(remaining[0].token);
+      window.location.reload();
+    } else {
+      setState({ status: "ready", token: null, user: null, accounts: [] });
+      window.location.href = "/login";
+    }
+  }
+
+  function logoutAll() {
+    saveStoredAccounts([]);
+    clearStoredToken();
+    setState({ status: "ready", token: null, user: null, accounts: [] });
+    window.location.href = "/login";
   }
 
   const value = {
     user: state.user,
     token: state.token,
+    accounts: state.accounts,
     isAuthenticated: Boolean(state.user && state.token),
     isLoading: state.status === "loading",
     login,
     logout,
-    refreshUser,
+    logoutAll,
+    switchAccount,
+    addAccount,
+    refreshUser: async () => {
+      const user = await authService.getCurrentUser();
+      setState(prev => ({ ...prev, user }));
+      return user;
+    },
     signup
   };
 

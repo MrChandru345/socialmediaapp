@@ -1,4 +1,4 @@
-﻿const { AppError, buildPaginationMeta, parsePagination, sanitizeUser } = require("../../utils/helpers");
+const { AppError, buildPaginationMeta, parsePagination, sanitizeUser } = require("../../utils/helpers");
 const { createNotification } = require("../notification/notification.service");
 const Post = require("../post/post.model");
 const Comment = require("./comment.model");
@@ -38,10 +38,18 @@ async function addComment(userId, postId, payload) {
     throw new AppError(400, "Comment content is required");
   }
 
-  const post = await Post.findById(postId).select("author commentsCount");
+  // Try finding in Post first, then Reel
+  const Reel = require("../reel/reel.model");
+  let parent = await Post.findById(postId).select("author commentsCount");
+  let modelName = "Post";
 
-  if (!post) {
-    throw new AppError(404, "Post not found");
+  if (!parent) {
+    parent = await Reel.findById(postId).select("author commentsCount");
+    modelName = "Reel";
+  }
+
+  if (!parent) {
+    throw new AppError(404, "Content not found");
   }
 
   const comment = await Comment.create({
@@ -51,17 +59,17 @@ async function addComment(userId, postId, payload) {
     parentComment: payload.parentCommentId || null
   });
 
-  post.commentsCount += 1;
-  await post.save();
+  parent.commentsCount += 1;
+  await parent.save();
 
-  if (String(post.author) !== String(userId)) {
+  if (String(parent.author) !== String(userId)) {
     await createNotification({
-      recipient: post.author,
+      recipient: parent.author,
       actor: userId,
       type: "comment",
-      entityId: post._id,
-      entityModel: "Post",
-      message: "commented on your post"
+      entityId: parent._id,
+      entityModel: modelName,
+      message: `commented on your ${modelName.toLowerCase()}`
     });
   }
 
@@ -86,9 +94,11 @@ async function deleteComment(userId, commentId, role) {
     throw new AppError(403, "You do not have permission to delete this comment");
   }
 
+  const Reel = require("../reel/reel.model");
   await Promise.all([
     Comment.deleteOne({ _id: commentId }),
-    Post.findByIdAndUpdate(comment.post, { $inc: { commentsCount: -1 } })
+    Post.findByIdAndUpdate(comment.post, { $inc: { commentsCount: -1 } }),
+    Reel.findByIdAndUpdate(comment.post, { $inc: { commentsCount: -1 } })
   ]);
 
   return {

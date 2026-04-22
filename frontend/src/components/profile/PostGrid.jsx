@@ -1,6 +1,6 @@
 import Button from "../common/Button";
 import Loader from "../common/Loader";
-import { getPostMedia, isVideoMedia, getPostLikeCount, getPostCommentCount } from "../../utils/helpers";
+import { getPostMedia, isVideoMedia, getPostLikeCount, getPostCommentCount, isReel } from "../../utils/helpers";
 
 export default function PostGrid({ posts = [], isOwnProfile, onCreatePost, activeTab, onPostClick, status = 'ready' }) {
   if (status === 'loading') {
@@ -72,26 +72,46 @@ export default function PostGrid({ posts = [], isOwnProfile, onCreatePost, activ
     );
   }
 
+  const isReelsTab = activeTab === 'reels';
+
   return (
-    <div className="gallery-grid">
+    <div className={isReelsTab ? "reels-grid" : "gallery-grid"}>
       {posts.map((post) => {
         const media = getPostMedia(post);
+        const postIsReel = isReel(post);
+        const tileClass = (isReelsTab || postIsReel) ? "reels-tile hover-zoom" : "gallery-tile radius-md hover-zoom";
+        const videoClass = (isReelsTab || postIsReel) ? "reels-tile__video" : "gallery-tile__image";
+
         return (
           <div
             key={post.id}
-            className="gallery-tile radius-md hover-zoom"
+            className={tileClass}
             onClick={() => onPostClick?.(post)}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && onPostClick?.(post)}
           >
             {media && isVideoMedia(media) ? (
-              <video src={media.url} className="gallery-tile__image" playsInline muted loop />
+              <video 
+                src={media.url} 
+                className={videoClass} 
+                playsInline 
+                muted 
+                loop 
+                autoPlay 
+              />
             ) : media ? (
               <img src={media.url} alt="Post" className="gallery-tile__image" />
             ) : (
               <div className="gallery-tile__image empty" />
             )}
+
+            {(isReelsTab || postIsReel) && (
+              <div className="reels-tile__badge">
+                <span className="material-symbols-outlined">movie</span>
+              </div>
+            )}
+
             <div className="gallery-tile__overlay modern-glass-overlay">
               <span className="overlay-stat">
                 <span className="material-symbols-outlined filled">favorite</span> 
