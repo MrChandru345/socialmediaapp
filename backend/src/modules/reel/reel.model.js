@@ -1,5 +1,7 @@
 const mongoose = require("mongoose");
 
+const { REEL_CAPTION_MAX_LENGTH } = require("./reel.constants");
+
 const videoSchema = new mongoose.Schema(
   {
     url: {
@@ -32,7 +34,7 @@ const reelSchema = new mongoose.Schema(
     caption: {
       type: String,
       trim: true,
-      maxlength: 220,
+      maxlength: REEL_CAPTION_MAX_LENGTH,
       default: ""
     },
     video: {

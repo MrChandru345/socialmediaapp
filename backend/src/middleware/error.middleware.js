@@ -11,7 +11,7 @@ function notFoundHandler(req, res, next) {
 }
 
 function errorHandler(error, req, res, next) {
-  const statusCode = error.statusCode || 500;
+  let statusCode = error.statusCode || 500;
   
   // Log error to console for debugging
   console.error(`[ERROR] ${req.method} ${req.originalUrl}:`, error);
@@ -26,11 +26,13 @@ function errorHandler(error, req, res, next) {
   }
 
   if (error.name === "ValidationError") {
+    statusCode = 400;
     payload.message = "Validation failed";
     payload.details = Object.values(error.errors).map((entry) => entry.message);
   }
 
   if (error.name === "CastError") {
+    statusCode = 400;
     payload.message = "Invalid resource identifier";
   }
 

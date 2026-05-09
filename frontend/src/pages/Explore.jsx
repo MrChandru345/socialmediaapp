@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 
 import Button from "../components/common/Button";
 import Loader from "../components/common/Loader";
-import PostCard from "../components/post/PostCard";
+import PostModal from "../components/post/PostModal";
 import { useAuth } from "../hooks/useAuth";
 import { followService } from "../services/followService";
 import { postService } from "../services/postService";
@@ -42,6 +42,7 @@ export default function Explore() {
   const [searchDraft, setSearchDraft] = useState("");
   const [pendingFollowIds, setPendingFollowIds] = useState([]);
   const [state, setState] = useState(initialState);
+  const [selectedPost, setSelectedPost] = useState(null);
   const activeQuery = (searchParams.get("q") || "").trim();
   const visibleCreators = activeQuery ? state.searchResults : state.suggestions;
   const creatorsStatus = activeQuery ? state.searchStatus : state.suggestionsStatus;
@@ -218,6 +219,24 @@ export default function Explore() {
     }));
   }
 
+  function handlePostUpdated(updatedPost) {
+    if (updatedPost?.deleted) {
+      handlePostRemoved(updatedPost.id);
+      setSelectedPost(null);
+      return;
+    }
+
+    setState((currentState) => ({
+      ...currentState,
+      posts: currentState.posts.map((post) =>
+        post.id === updatedPost.id ? { ...post, ...updatedPost } : post
+      )
+    }));
+    setSelectedPost((currentPost) =>
+      currentPost?.id === updatedPost.id ? { ...currentPost, ...updatedPost } : currentPost
+    );
+  }
+
   const isInitialLoading = state.postsStatus === "loading" && state.suggestionsStatus === "loading";
   const creatorsTitle = activeQuery ? `Creators matching "${activeQuery}"` : "Suggested creators";
   const creatorsEyebrow = activeQuery ? "Search results" : "Creator discovery";
@@ -312,9 +331,13 @@ export default function Explore() {
                {state.posts.map((post) => {
                 const media = getPostMedia(post);
                 const postIsReel = isReel(post);
-                const profileUrl = `/profile/${post.author?.username || post.author?.id}`;
                 return (
-                  <Link key={post.id} className={postIsReel ? "reels-tile" : "gallery-tile"} to={profileUrl}>
+                  <button
+                    key={`${postIsReel ? "reel" : "post"}-${post.id}`}
+                    className={postIsReel ? "reels-tile" : "gallery-tile"}
+                    onClick={() => setSelectedPost(post)}
+                    type="button"
+                  >
                     {media && isVideoMedia(media) ? (
                       <video src={media.url} className={postIsReel ? "reels-tile__video" : "gallery-tile__image"} playsInline muted loop autoPlay />
                     ) : media ? (
@@ -339,7 +362,7 @@ export default function Explore() {
                         {getPostCommentCount(post)}
                       </span>
                     </div>
-                  </Link>
+                  </button>
                 );
               })}
             </div>
@@ -350,6 +373,13 @@ export default function Explore() {
           )}
         </section>
       )}
+
+      <PostModal
+        onClose={() => setSelectedPost(null)}
+        onPostUpdated={handlePostUpdated}
+        open={Boolean(selectedPost)}
+        post={selectedPost}
+      />
     </div>
   );
 }
