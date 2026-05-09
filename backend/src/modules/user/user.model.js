@@ -75,6 +75,12 @@ const userSchema = new mongoose.Schema(
         ref: "Post"
       }
     ],
+    savedReels: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Reel"
+      }
+    ],
     role: {
       type: String,
       enum: ["user", "admin"],

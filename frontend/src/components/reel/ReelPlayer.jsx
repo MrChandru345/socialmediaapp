@@ -1,15 +1,30 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Heart, MessageSquare, Send, Bookmark, MoreHorizontal } from "lucide-react";
 import { getAvatarForUser, formatCompactNumber } from "../../utils/helpers";
 import { reelService } from "../../services/reelService";
 import { useAuth } from "../../hooks/useAuth";
+import ReelCommentModal from "./ReelCommentModal";
+import ShareModal from "../common/ShareModal";
 
 export default function ReelPlayer({ reel, onPostClick }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLiked, setIsLiked] = useState(reel.likedByViewer);
   const [likesCount, setLikesCount] = useState(reel.likesCount || 0);
+  const [commentsCount, setCommentsCount] = useState(reel.commentsCount || 0);
   const [isLikePending, setIsLikePending] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [showHeartPop, setShowHeartPop] = useState(false);
+  const [isSaved, setIsSaved] = useState(reel.savedByViewer);
+  const [isSavePending, setIsSavePending] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const clickTimeoutRef = useRef(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -44,20 +59,44 @@ export default function ReelPlayer({ reel, onPostClick }) {
     }
   };
 
+  const handleVideoClick = (e) => {
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+      handleDoubleClick(e);
+    } else {
+      clickTimeoutRef.current = setTimeout(() => {
+        togglePlay();
+        clickTimeoutRef.current = null;
+      }, 250);
+    }
+  };
+
+  const handleDoubleClick = (e) => {
+    e.preventDefault();
+    if (!isLiked) handleLike(e);
+    setShowHeartPop(true);
+    setTimeout(() => setShowHeartPop(false), 800);
+  };
+
+  const toggleMute = (e) => {
+    e.stopPropagation();
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted;
+      setIsMuted(videoRef.current.muted);
+    }
+  };
+
   async function handleLike(e) {
     e.stopPropagation();
     if (isLikePending) return;
-    
     setIsLikePending(true);
-    // Optimistic UI update
     const newLiked = !isLiked;
     setIsLiked(newLiked);
     setLikesCount(prev => newLiked ? prev + 1 : prev - 1);
-
     try {
       await reelService.toggleLike(reel.id);
     } catch (err) {
-      // Revert if failed
       setIsLiked(!newLiked);
       setLikesCount(prev => !newLiked ? prev + 1 : prev - 1);
     } finally {
@@ -65,58 +104,168 @@ export default function ReelPlayer({ reel, onPostClick }) {
     }
   }
 
+  async function handleSave(e) {
+    e.stopPropagation();
+    if (isSavePending) return;
+    setIsSavePending(true);
+    const newSaved = !isSaved;
+    setIsSaved(newSaved);
+    try {
+      await reelService.toggleSave(reel.id || reel._id);
+    } catch (err) {
+      setIsSaved(!newSaved);
+    } finally {
+      setIsSavePending(false);
+    }
+  }
+
+  const CAPTION_LIMIT = 80;
+  const hasLongCaption = reel.caption && reel.caption.length > CAPTION_LIMIT;
+
   return (
-    <article className="reel-fullscreen" onClick={togglePlay}>
-      <video
-        ref={videoRef}
-        className="reel-fullscreen__video"
-        src={reel.video?.url}
-        poster={reel.poster || reel.video?.url}
-        loop
-        playsInline
-      />
-      
-      {!isPlaying && (
-        <div className="reel-fullscreen__play-btn">
-          <span className="material-symbols-outlined filled">play_arrow</span>
+    <article className="reel-fullscreen">
+      <div className="reel-layout-group">
+        {/* LEFT INFO PANEL - outside the video, matching video height */}
+        <div className="reel-left-panel">
+          <div className="reel-left-panel__inner">
+            {/* Author row */}
+            <div className="reel-left__author">
+              <img
+                src={reel.author?.avatar?.url || reel.author?.avatar || getAvatarForUser(reel.author, "User")}
+                alt="Avatar"
+                onClick={() => navigate(`/profile/${reel.author?.username}`)}
+                style={{ cursor: 'pointer' }}
+              />
+              <div className="reel-left__author-info">
+                <span
+                  className="reel-left__username"
+                  onClick={() => navigate(`/profile/${reel.author?.username}`)}
+                >
+                  {reel.author?.username || "creator"}
+                </span>
+                <span className="reel-left__dot">•</span>
+                <button className="reel-left__follow-btn" onClick={(e) => e.stopPropagation()}>
+                  Follow
+                </button>
+              </div>
+            </div>
+
+            {/* Caption */}
+            {reel.caption && (
+              <div className="reel-left__caption">
+                <p>
+                  {isCaptionExpanded || !hasLongCaption
+                    ? reel.caption
+                    : reel.caption.slice(0, CAPTION_LIMIT) + "..."}
+                </p>
+                {hasLongCaption && (
+                  <button
+                    className="reel-left__caption-toggle"
+                    onClick={(e) => { e.stopPropagation(); setIsCaptionExpanded(!isCaptionExpanded); }}
+                  >
+                    {isCaptionExpanded ? "less" : "more"}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* VIDEO */}
+        <div className="reel-video-wrapper" onClick={handleVideoClick}>
+          <video
+            ref={videoRef}
+            className="reel-fullscreen__video"
+            src={reel.video?.url}
+            poster={reel.poster || reel.video?.url}
+            loop
+            playsInline
+          />
+
+          {!isPlaying && (
+            <div className="reel-fullscreen__play-btn">
+              <span className="material-symbols-outlined filled">play_arrow</span>
+            </div>
+          )}
+
+          {showHeartPop && (
+            <div className="reel-fullscreen__heart-pop">
+              <span className="material-symbols-outlined filled">favorite</span>
+            </div>
+          )}
+
+          {/* Mute button bottom-right inside video */}
+          <button className="reel-mute-btn" onClick={toggleMute}>
+            <span className="material-symbols-outlined">
+              {isMuted ? "volume_off" : "volume_up"}
+            </span>
+          </button>
+        </div>
+
+        {/* ACTION BUTTONS - right of video */}
+        <div className="reel-actions-sidebar">
+          <button className={`reel-action-btn ${isLiked ? 'liked' : ''}`} onClick={handleLike}>
+            <div className="icon-circle">
+              <Heart size={28} fill={isLiked ? "#ed4956" : "none"} color={isLiked ? "#ed4956" : "white"} strokeWidth={isLiked ? 0 : 2} />
+            </div>
+            <span className="action-label">{formatCompactNumber(likesCount)}</span>
+          </button>
+          <button className="reel-action-btn" onClick={(e) => { e.stopPropagation(); setShowComments(true); }}>
+            <div className="icon-circle">
+              <MessageSquare size={28} color="white" />
+            </div>
+            <span className="action-label">{formatCompactNumber(commentsCount)}</span>
+          </button>
+          <button className="reel-action-btn" onClick={(e) => { e.stopPropagation(); setShowShare(true); }}>
+            <div className="icon-circle">
+              <Send size={28} color="white" />
+            </div>
+          </button>
+          <button className="reel-action-btn" onClick={handleSave}>
+            <div className="icon-circle">
+              <Bookmark size={28} fill={isSaved ? "white" : "none"} strokeWidth={isSaved ? 0 : 2} color="white" />
+            </div>
+          </button>
+          <button className="reel-action-btn" onClick={(e) => { e.stopPropagation(); setShowMore(true); }}>
+            <div className="icon-circle">
+              <MoreHorizontal size={28} color="white" />
+            </div>
+          </button>
+          <img className="reel-music-disc" src={reel.author?.avatar?.url || reel.author?.avatar || getAvatarForUser(reel.author, "User")} alt="Audio" />
+        </div>
+      </div>
+
+      {showShare && (
+        <ShareModal
+          isOpen={showShare}
+          onClose={() => setShowShare(false)}
+          payload={{
+            body: "Shared a reel",
+            sharedReel: reel._id || reel.id,
+            media: reel.video
+          }}
+        />
+      )}
+
+      {showMore && (
+        <div className="reel-modal-overlay" onClick={(e) => { e.stopPropagation(); setShowMore(false); }}>
+          <div className="reel-mini-modal" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => {
+              setShowMore(false);
+              navigate(`/profile/${reel.author?.username || reel.author?.id}`);
+            }}>About this account</button>
+          </div>
         </div>
       )}
 
-      <div className="reel-fullscreen__overlay">
-        <div className="reel-overlay-main">
-          <div className="reel-overlay__content">
-            <div className="reel-overlay__author">
-              <img src={reel.author?.avatar || getAvatarForUser(reel.author, "User")} alt="Avatar" />
-              <strong>{reel.author?.username || "creator"}</strong>
-              <button className="mini-action" onClick={(e) => e.stopPropagation()}>Follow</button>
-            </div>
-            {reel.caption && <p className="reel-overlay__caption">{reel.caption}</p>}
-            <div className="reel-overlay__music">
-              <span className="material-symbols-outlined">music_note</span>
-              <marquee scrollamount="3">Original Audio - {reel.author?.username || "creator"}</marquee>
-            </div>
-          </div>
-
-          <div className="reel-overlay__actions">
-            <button className={`reel-action-btn ${isLiked ? 'liked' : ''}`} onClick={handleLike}>
-              <span className={`material-symbols-outlined ${isLiked ? 'filled' : ''}`}>favorite</span>
-              <span>{formatCompactNumber(likesCount)}</span>
-            </button>
-            <button className="reel-action-btn" onClick={(e) => { e.stopPropagation(); onPostClick?.(reel); }}>
-              <span className="material-symbols-outlined filled">chat_bubble</span>
-              <span>{formatCompactNumber(reel.commentsCount || 0)}</span>
-            </button>
-            <button className="reel-action-btn" onClick={(e) => e.stopPropagation()}>
-              <span className="material-symbols-outlined">send</span>
-            </button>
-            <button className="reel-action-btn" onClick={(e) => { e.stopPropagation(); onPostClick?.(reel); }}>
-              <span className="material-symbols-outlined">more_horiz</span>
-            </button>
-            <img className="reel-music-disc" src={reel.author?.avatar || getAvatarForUser(reel.author, "User")} alt="Audio" />
-          </div>
-        </div>
-      </div>
+      {showComments && (
+        <ReelCommentModal
+          reel={reel}
+          onClose={() => setShowComments(false)}
+          onCommentAdded={() => setCommentsCount(prev => prev + 1)}
+          onCommentDeleted={() => setCommentsCount(prev => Math.max(prev - 1, 0))}
+        />
+      )}
     </article>
   );
 }
-

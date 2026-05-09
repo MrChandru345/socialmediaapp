@@ -28,6 +28,7 @@ export const chatService = {
       formData.append("body", payload.body || "");
       if (payload.replyTo) formData.append("replyTo", payload.replyTo);
       if (payload.sharedPost) formData.append("sharedPost", payload.sharedPost);
+      if (payload.sharedReel) formData.append("sharedReel", payload.sharedReel);
       formData.append("attachments", payload.file);
 
       const response = await api.post(`/chat/${userId}`, formData);
@@ -39,7 +40,8 @@ export const chatService = {
       body: payload.body || "",
       replyTo: payload.replyTo || null,
       attachments: payload.attachments || [],
-      sharedPost: payload.sharedPost || null
+      sharedPost: payload.sharedPost || null,
+      sharedReel: payload.sharedReel || null
     });
     return response.data.data;
   },

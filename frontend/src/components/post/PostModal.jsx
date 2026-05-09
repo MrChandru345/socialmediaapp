@@ -142,7 +142,11 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
     if (!currentPost) return;
     setIsSavePending(true);
     try {
-      const result = await postService.toggleSave(currentPost.id);
+      const isPostReel = isReel(currentPost);
+      const result = isPostReel
+        ? await reelService.toggleSave(currentPost.id)
+        : await postService.toggleSave(currentPost.id);
+        
       const updated = { ...currentPost, savedByViewer: result.saved, savesCount: result.savesCount };
       setCurrentPost(updated);
       onPostUpdated?.(updated);

@@ -1,4 +1,4 @@
-﻿const { AppError } = require("../utils/helpers");
+const { AppError } = require("../utils/helpers");
 
 function asyncHandler(handler) {
   return function wrappedHandler(req, res, next) {
@@ -12,6 +12,10 @@ function notFoundHandler(req, res, next) {
 
 function errorHandler(error, req, res, next) {
   const statusCode = error.statusCode || 500;
+  
+  // Log error to console for debugging
+  console.error(`[ERROR] ${req.method} ${req.originalUrl}:`, error);
+
   const payload = {
     success: false,
     message: error.message || "Internal server error"

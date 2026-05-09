@@ -27,6 +27,10 @@ function formatAuthor(author) {
 }
 
 function formatReel(reel, viewerId) {
+  if (!reel || !reel._id) {
+    return null;
+  }
+
   return {
     ...reel,
     id: String(reel._id),
@@ -34,6 +38,10 @@ function formatReel(reel, viewerId) {
     likesCount: reel.likes?.length || 0,
     likedByViewer: viewerId
       ? reel.likes?.some((entry) => String(entry) === String(viewerId))
+      : false,
+    savesCount: reel.saves?.length || 0,
+    savedByViewer: viewerId
+      ? reel.saves?.some((entry) => String(entry) === String(viewerId))
       : false
   };
 }
@@ -104,7 +112,7 @@ async function getReels(query, viewerId) {
   ]);
 
   return {
-    items: reels.map((reel) => formatReel(reel, viewerId)),
+    items: reels.map((reel) => formatReel(reel, viewerId)).filter(Boolean),
     meta: buildPaginationMeta(page, limit, total)
   };
 }
@@ -143,6 +151,39 @@ async function toggleReelLike(reelId, userId) {
   };
 }
 
+async function toggleReelSave(reelId, userId) {
+  const User = require("../user/user.model");
+  const [reel, user] = await Promise.all([
+    Reel.findById(reelId),
+    User.findById(userId).select("savedReels")
+  ]);
+
+  if (!reel) {
+    throw new AppError(404, "Reel not found");
+  }
+
+  if (!user) {
+    throw new AppError(404, "User not found");
+  }
+
+  const isSaved = reel.saves.some((entry) => String(entry) === String(userId));
+
+  if (isSaved) {
+    reel.saves.pull(userId);
+    user.savedReels.pull(reelId);
+  } else {
+    reel.saves.addToSet(userId);
+    user.savedReels.addToSet(reelId);
+  }
+
+  await Promise.all([reel.save(), user.save()]);
+
+  return {
+    saved: !isSaved,
+    savesCount: reel.saves.length
+  };
+}
+
 async function deleteReel(reelId, requester) {
   const reel = await Reel.findById(reelId);
 
@@ -169,5 +210,6 @@ module.exports = {
   createReel,
   deleteReel,
   getReels,
-  toggleReelLike
+  toggleReelLike,
+  toggleReelSave
 };

@@ -23,8 +23,8 @@ export default function MessageBubble({
   const menuRef = useRef(null);
   const incoming = !isMe;
   const hasAttachments = message.attachments && message.attachments.length > 0;
-  // If the text is exactly 'Shared a post', we hide it since the visual card handles the intent natively unless they wrote a custom message
-  const hasText = message.text && message.text.trim().length > 0 && message.text !== "Shared a post";
+  // If the text is exactly 'Shared a post' or 'Shared a reel', we hide it since the visual card handles the intent natively unless they wrote a custom message
+  const hasText = message.text && message.text.trim().length > 0 && message.text !== "Shared a post" && message.text !== "Shared a reel";
 
   const quickEmojis = ["❤️", "😂", "😮", "😢", "🔥", "👍"];
 
@@ -192,7 +192,7 @@ export default function MessageBubble({
                     );
 
                     return (
-                      <div className="shared-post-card__media" style={{ cursor: 'pointer' }} onClick={() => onMediaClick?.(media.url, media.type || 'image')}>
+                      <div className="shared-post-card__media" style={{ cursor: 'pointer' }}>
                         {media.type === "video" ? (
                           <div style={{ position: 'relative' }}>
                             <video src={media.url} className="shared-post-card__img" />
@@ -283,8 +283,8 @@ export default function MessageBubble({
           </div>
         )}
 
-        {/* If no text but has attachments, put reactions on attachments */}
-        {!hasText && hasAttachments && message.reactions && message.reactions.length > 0 && (
+        {/* If no text but has attachments or shared post, put reactions on them */}
+        {!hasText && (hasAttachments || message.sharedPost) && message.reactions && message.reactions.length > 0 && (
           <div className="message-reactions-pill--on-media" style={{ position: 'relative', marginTop: '-10px' }}>
              <div className={`message-reactions-pill ${incoming ? "message-reactions-pill--incoming" : "message-reactions-pill--outgoing"}`}>
                 {Object.entries(

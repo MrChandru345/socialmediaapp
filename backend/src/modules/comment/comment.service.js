@@ -3,15 +3,19 @@ const { createNotification } = require("../notification/notification.service");
 const Post = require("../post/post.model");
 const Comment = require("./comment.model");
 
-function formatComment(comment) {
+function formatComment(comment, viewerId) {
   return {
     ...comment,
     id: String(comment._id),
-    author: sanitizeUser(comment.author)
+    author: sanitizeUser(comment.author),
+    likesCount: comment.likes?.length || 0,
+    likedByViewer: viewerId
+      ? comment.likes?.some((entry) => String(entry) === String(viewerId))
+      : false
   };
 }
 
-async function listComments(postId, query) {
+async function listComments(postId, query, viewerId) {
   const { page, limit, skip } = parsePagination(query);
   const filter = { post: postId };
 
@@ -26,7 +30,7 @@ async function listComments(postId, query) {
   ]);
 
   return {
-    items: comments.map(formatComment),
+    items: comments.map((comment) => formatComment(comment, viewerId)),
     meta: buildPaginationMeta(page, limit, total)
   };
 }
@@ -77,7 +81,7 @@ async function addComment(userId, postId, payload) {
     .populate("author", "username fullName avatar role")
     .lean();
 
-  return formatComment(populatedComment);
+  return formatComment(populatedComment, userId);
 }
 
 async function deleteComment(userId, commentId, role) {
@@ -107,8 +111,43 @@ async function deleteComment(userId, commentId, role) {
   };
 }
 
+async function toggleLike(commentId, userId) {
+  const comment = await Comment.findById(commentId);
+
+  if (!comment) {
+    throw new AppError(404, "Comment not found");
+  }
+
+  const isLiked = comment.likes.some((entry) => String(entry) === String(userId));
+
+  if (isLiked) {
+    comment.likes.pull(userId);
+  } else {
+    comment.likes.addToSet(userId);
+  }
+
+  await comment.save();
+
+  if (!isLiked && String(comment.author) !== String(userId)) {
+    await createNotification({
+      recipient: comment.author,
+      actor: userId,
+      type: "like",
+      entityId: comment._id,
+      entityModel: "Comment",
+      message: "liked your comment"
+    });
+  }
+
+  return {
+    liked: !isLiked,
+    likesCount: comment.likes.length
+  };
+}
+
 module.exports = {
   addComment,
   deleteComment,
-  listComments
+  listComments,
+  toggleLike
 };

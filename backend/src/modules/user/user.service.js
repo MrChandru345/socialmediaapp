@@ -370,11 +370,13 @@ async function getSavedPosts(userId, query) {
   const user = await User.findById(userId)
     .populate({
       path: "savedPosts",
-      options: {
-        sort: { createdAt: -1 },
-        skip,
-        limit
-      },
+      populate: {
+        path: "author",
+        select: "username fullName avatar location role"
+      }
+    })
+    .populate({
+      path: "savedReels",
       populate: {
         path: "author",
         select: "username fullName avatar location role"
@@ -386,11 +388,16 @@ async function getSavedPosts(userId, query) {
     throw new AppError(404, "User not found");
   }
 
-  const savedPostsCount = await User.findById(userId).select("savedPosts").lean();
-  const total = savedPostsCount?.savedPosts?.length || 0;
+  const combined = [
+    ...(user.savedPosts || []).filter(Boolean).map((post) => formatProfilePost(post, userId)),
+    ...(user.savedReels || []).filter(Boolean).map((reel) => formatProfilePost(reel, userId))
+  ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const total = combined.length;
+  const items = combined.slice(skip, skip + limit);
 
   return {
-    items: (user.savedPosts || []).map((post) => formatProfilePost(post, userId)),
+    items,
     meta: buildPaginationMeta(page, limit, total)
   };
 }

@@ -212,9 +212,9 @@ export function createOptimisticPost(post) {
     ...post,
     commentsCount: post.commentsCount || 0,
     likedByViewer: Boolean(post.likedByViewer),
-    likesCount: post.likesCount || 0,
+    likesCount: getPostLikeCount(post),
     savedByViewer: Boolean(post.savedByViewer),
-    savesCount: post.savesCount || 0
+    savesCount: getPostSaveCount(post)
   };
 }
 
@@ -295,11 +295,15 @@ export function getPostCommentCount(post) {
 }
 
 export function getPostLikeCount(post) {
-  return post?.likesCount || 0;
+  if (post?.likesCount !== undefined) return post.likesCount;
+  if (Array.isArray(post?.likes)) return post.likes.length;
+  return 0;
 }
 
 export function getPostSaveCount(post) {
-  return post?.savesCount || 0;
+  if (post?.savesCount !== undefined) return post.savesCount;
+  if (Array.isArray(post?.saves)) return post.saves.length;
+  return 0;
 }
 
 export function getCommentMeta(comment) {

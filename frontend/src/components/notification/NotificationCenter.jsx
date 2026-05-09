@@ -68,6 +68,7 @@ export default function NotificationCenter({
   onFollowToggle,
   onClose,
   onMarkRead,
+  onMarkAllRead,
   open
 }) {
   const grouped = groupNotifications(notifications);
@@ -97,12 +98,32 @@ export default function NotificationCenter({
     );
   };
 
+  const hasUnread = notifications.some(n => !n.isRead);
+
   return (
     <>
       {open ? <div className="notification-sidebar-overlay" onClick={onClose} aria-hidden="true" /> : null}
       <aside className={`notification-sidebar ${open ? "open" : ""}`}>
         <div className="activity-header">
-          <h3>Activity</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <h3 style={{ margin: 0 }}>Activity</h3>
+            {hasUnread && (
+              <button 
+                onClick={onMarkAllRead} 
+                style={{ 
+                  background: "none", 
+                  border: "none", 
+                  color: "#0095f6", 
+                  fontWeight: "600", 
+                  cursor: "pointer", 
+                  fontSize: "14px",
+                  padding: 0
+                }}
+              >
+                Mark all as read
+              </button>
+            )}
+          </div>
           <div className="filter-tabs-row">
             {filters.map(f => (
               <button 

@@ -12,5 +12,9 @@ export const commentService = {
   async remove(commentId) {
     const response = await api.delete(`/comments/${commentId}`);
     return response.data.data;
+  },
+  async toggleLike(commentId) {
+    const response = await api.post(`/comments/${commentId}/like`);
+    return response.data.data;
   }
 };

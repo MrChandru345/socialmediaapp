@@ -1,5 +1,5 @@
-﻿const { asyncHandler } = require("../../middleware/error.middleware");
-const { createReel, deleteReel, getReels, toggleReelLike } = require("./reel.service");
+const { asyncHandler } = require("../../middleware/error.middleware");
+const { createReel, deleteReel, getReels, toggleReelLike, toggleReelSave } = require("./reel.service");
 
 const createNewReel = asyncHandler(async (req, res) => {
   const reel = await createReel(req.user._id, req.body, req.file);
@@ -39,9 +39,19 @@ const removeReel = asyncHandler(async (req, res) => {
   });
 });
 
+const saveReel = asyncHandler(async (req, res) => {
+  const result = await toggleReelSave(req.params.reelId, req.user._id);
+
+  res.json({
+    success: true,
+    data: result
+  });
+});
+
 module.exports = {
   createNewReel,
   getAllReels,
   likeReel,
+  saveReel,
   removeReel
 };
