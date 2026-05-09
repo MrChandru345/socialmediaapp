@@ -1,3 +1,5 @@
+import defaultUserAvatar from "../assets/icons/user.webp";
+
 export function classNames(...values) {
   return values.filter(Boolean).join(" ");
 }
@@ -241,8 +243,20 @@ export function getCommentAuthorLabel(comment) {
   return getDisplayName(comment?.author, "Curator");
 }
 
+function normalizeAvatarUrl(avatar) {
+  if (!avatar) {
+    return "";
+  }
+
+  if (typeof avatar === "string") {
+    return avatar.trim();
+  }
+
+  return avatar.url?.trim() || "";
+}
+
 export function getAvatarForUser(user, fallbackName) {
-  return resolveAvatar(getDisplayName(user, fallbackName), user?.avatar?.url);
+  return resolveAvatar(getDisplayName(user, fallbackName), user?.avatar);
 }
 
 export function buildSnapshotItems({ postsCount, storiesCount, suggestionsCount }) {
@@ -440,12 +454,7 @@ export function getInitials(name = "Curator") {
 }
 
 export function resolveAvatar(name, avatarUrl) {
-  if (avatarUrl) {
-    return avatarUrl;
-  }
-
-  const encodedName = encodeURIComponent(name || "User");
-  return `https://ui-avatars.com/api/?name=${encodedName}&background=random&color=fff`;
+  return normalizeAvatarUrl(avatarUrl) || defaultUserAvatar;
 }
 
 export function withDelay(value, ms = 350) {

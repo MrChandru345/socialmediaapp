@@ -162,7 +162,7 @@ export default function ReelPlayer({ reel, onPostClick }) {
             {/* Author row */}
             <div className="reel-left__author">
               <img
-                src={reel.author?.avatar?.url || reel.author?.avatar || getAvatarForUser(reel.author, "User")}
+                src={getAvatarForUser(reel.author, "User")}
                 alt="Avatar"
                 onClick={() => navigate(`/profile/${reel.author?.username}`)}
                 style={{ cursor: 'pointer' }}
@@ -268,7 +268,7 @@ export default function ReelPlayer({ reel, onPostClick }) {
               <MoreHorizontal size={28} color="white" />
             </div>
           </button>
-          <img className="reel-music-disc" src={reel.author?.avatar?.url || reel.author?.avatar || getAvatarForUser(reel.author, "User")} alt="Audio" />
+          <img className="reel-music-disc" src={getAvatarForUser(reel.author, "User")} alt="Audio" />
         </div>
       </div>
 
