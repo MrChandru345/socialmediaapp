@@ -512,6 +512,7 @@ export default function ChatBox() {
   }
 
   function handlePostClick(post) {
+    setShowUserInfo(false);
     setSelectedPostForModal(post);
     setIsPostModalOpen(true);
   }
@@ -1136,7 +1137,17 @@ export default function ChatBox() {
                             <div 
                               key={i} 
                               className="media-gallery-item" 
-                              onClick={() => setViewerMedia({ url: m.url, type: m.type })}
+                              onClick={() => {
+                                const isShared = m.isSharedPost || m.postId || m.reelId;
+                                if (isShared) {
+                                  handlePostClick({ 
+                                    id: m.postId || m.reelId || m._id || m.id, 
+                                    isReel: Boolean(m.reelId || m.isReel) 
+                                  });
+                                } else {
+                                  setViewerMedia({ url: m.url, type: m.type });
+                                }
+                              }}
                             >
                               {m.type === 'video' ? (
                                 <div className="video-thumb">
