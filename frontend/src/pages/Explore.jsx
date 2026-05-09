@@ -7,6 +7,7 @@ import PostCard from "../components/post/PostCard";
 import { useAuth } from "../hooks/useAuth";
 import { followService } from "../services/followService";
 import { postService } from "../services/postService";
+import { reelService } from "../services/reelService";
 import { userService } from "../services/userService";
 import {
   createOptimisticPost,
@@ -19,7 +20,8 @@ import {
   getPostMedia,
   isVideoMedia,
   getPostLikeCount,
-  getPostCommentCount
+  getPostCommentCount,
+  isReel
 } from "../utils/helpers";
 
 const initialState = {
@@ -113,15 +115,22 @@ export default function Explore() {
     }));
 
     try {
-      const [explore, suggestions] = await Promise.all([
+      const [explore, suggestions, reels] = await Promise.all([
         postService.getExplore({ limit: 12 }),
-        userService.getSuggestions()
+        userService.getSuggestions(),
+        reelService.getAll({ limit: 12 }).catch(err => ({ items: [] }))
       ]);
+
+      // Combine posts and reels for explore, or show separately
+      // For now let's combine and mark reels
+      const formattedReels = (reels.items || []).map(r => ({ ...r, isReel: true }));
+      const allContent = [...(explore.items || []), ...formattedReels]
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       setState((currentState) => ({
         ...currentState,
         error: "",
-        posts: (explore.items || []).map(createOptimisticPost),
+        posts: allContent.map(createOptimisticPost),
         postsMeta: explore.meta || null,
         postsStatus: "ready",
         suggestions: (suggestions || []).map((creator) => ({
@@ -300,21 +309,35 @@ export default function Explore() {
             <Loader label="Loading explore..." />
           ) : state.posts.length > 0 ? (
             <div className="gallery-grid">
-              {state.posts.map((post) => {
+               {state.posts.map((post) => {
                 const media = getPostMedia(post);
+                const postIsReel = isReel(post);
                 const profileUrl = `/profile/${post.author?.username || post.author?.id}`;
                 return (
-                  <Link key={post.id} className="gallery-tile" to={profileUrl}>
+                  <Link key={post.id} className={postIsReel ? "reels-tile" : "gallery-tile"} to={profileUrl}>
                     {media && isVideoMedia(media) ? (
-                      <video src={media.url} className="gallery-tile__image" playsInline muted loop />
+                      <video src={media.url} className={postIsReel ? "reels-tile__video" : "gallery-tile__image"} playsInline muted loop autoPlay />
                     ) : media ? (
                       <img src={media.url} alt="Post" className="gallery-tile__image" />
                     ) : (
                       <div className="gallery-tile__image empty" />
                     )}
-                    <div className="gallery-tile__overlay">
-                      <span><span className="material-symbols-outlined filled">favorite</span> {getPostLikeCount(post)}</span>
-                      <span><span className="material-symbols-outlined filled">chat_bubble</span> {getPostCommentCount(post)}</span>
+                    
+                    {postIsReel && (
+                      <div className="reels-tile__badge">
+                        <span className="material-symbols-outlined">movie</span>
+                      </div>
+                    )}
+
+                    <div className="gallery-tile__overlay modern-glass-overlay">
+                      <span className="overlay-stat">
+                        <span className="material-symbols-outlined filled">favorite</span> 
+                        {getPostLikeCount(post)}
+                      </span>
+                      <span className="overlay-stat">
+                        <span className="material-symbols-outlined filled">chat_bubble</span> 
+                        {getPostCommentCount(post)}
+                      </span>
                     </div>
                   </Link>
                 );

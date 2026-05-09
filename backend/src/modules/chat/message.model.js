@@ -76,6 +76,11 @@ const messageSchema = new mongoose.Schema(
       ref: "Post",
       default: null
     },
+    sharedReel: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Reel",
+      default: null
+    },
     reactions: [
       {
         user: {

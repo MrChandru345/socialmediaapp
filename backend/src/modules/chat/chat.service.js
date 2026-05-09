@@ -81,18 +81,27 @@ function formatMessage(message) {
   }
 
   // Handle populated shared post natively
-  if (message.sharedPost && typeof message.sharedPost === "object") {
-    const media = Array.isArray(message.sharedPost.media) 
-      ? message.sharedPost.media[0] 
-      : message.sharedPost.media;
+  let sharedResource = message.sharedPost || message.sharedReel;
+  let isReel = !!message.sharedReel;
+
+  if (sharedResource && typeof sharedResource === "object") {
+    const media = isReel 
+      ? sharedResource.video 
+      : (Array.isArray(sharedResource.media) ? sharedResource.media[0] : sharedResource.media);
+      
+    const mediaArr = isReel
+      ? [sharedResource.video]
+      : (Array.isArray(sharedResource.media) ? sharedResource.media : [sharedResource.media]);
+
     formatted.sharedPost = {
-      ...message.sharedPost,
-      id: String(message.sharedPost._id),
-      author: message.sharedPost.author ? formatChatUser(message.sharedPost.author) : null,
-      media: Array.isArray(message.sharedPost.media) ? message.sharedPost.media : [message.sharedPost.media]
+      ...sharedResource,
+      id: String(sharedResource._id),
+      author: sharedResource.author ? formatChatUser(sharedResource.author) : null,
+      media: mediaArr,
+      isReel
     };
-  } else if (message.sharedPost) {
-    formatted.sharedPost = String(message.sharedPost);
+  } else if (sharedResource) {
+    formatted.sharedPost = String(sharedResource);
   }
 
   return formatted;
@@ -242,6 +251,10 @@ async function getConversation(userId, withUserId, query) {
       path: "sharedPost",
       populate: { path: "author", select: "username fullName avatar" }
     })
+    .populate({
+      path: "sharedReel",
+      populate: { path: "author", select: "username fullName avatar" }
+    })
     .lean();
 
   return {
@@ -271,6 +284,7 @@ async function sendMessage(userId, receiverId, payload, files) {
 
   const replyTo = payload.replyTo || null;
   const sharedPost = payload.sharedPost || null;
+  const sharedReel = payload.sharedReel || null;
 
   const message = await Message.create({
     roomId: buildRoomId(userId, receiverId),
@@ -280,7 +294,8 @@ async function sendMessage(userId, receiverId, payload, files) {
     body,
     attachments,
     replyTo,
-    sharedPost
+    sharedPost,
+    sharedReel
   });
 
   const populatedMessage = await Message.findById(message._id)
@@ -292,6 +307,10 @@ async function sendMessage(userId, receiverId, payload, files) {
     })
     .populate({
       path: "sharedPost",
+      populate: { path: "author", select: "username fullName avatar" }
+    })
+    .populate({
+      path: "sharedReel",
       populate: { path: "author", select: "username fullName avatar" }
     })
     .lean();
@@ -450,6 +469,51 @@ async function deleteNote(userId, noteId) {
   return { success: true };
 }
 
+async function getConversationMedia(userId, withUserId) {
+  const roomId = buildRoomId(userId, withUserId);
+  const messages = await Message.find({
+    roomId,
+    $or: [
+      { attachments: { $exists: true, $not: { $size: 0 } } },
+      { sharedPost: { $exists: true, $ne: null } },
+      { sharedReel: { $exists: true, $ne: null } }
+    ],
+    deletedFor: { $ne: userId }
+  })
+  .populate({
+    path: "sharedPost",
+    select: "media"
+  })
+  .populate({
+    path: "sharedReel",
+    select: "video"
+  })
+  .sort({ createdAt: -1 })
+  .lean();
+
+  const media = [];
+  messages.forEach(m => {
+    if (m.attachments && m.attachments.length > 0) {
+      m.attachments.forEach(a => {
+        if (a.type !== "audio") {
+          media.push({ ...a, createdAt: m.createdAt, messageId: m._id });
+        }
+      });
+    }
+    if (m.sharedPost && m.sharedPost.media) {
+       const postMedia = Array.isArray(m.sharedPost.media) ? m.sharedPost.media : [m.sharedPost.media];
+       postMedia.forEach(a => {
+         media.push({ ...a, createdAt: m.createdAt, messageId: m._id, isSharedPost: true });
+       });
+    }
+    if (m.sharedReel && m.sharedReel.video) {
+       media.push({ ...m.sharedReel.video, createdAt: m.createdAt, messageId: m._id, isSharedPost: true });
+    }
+  });
+
+  return media;
+}
+
 module.exports = {
   deleteMessage,
   getConversation,
@@ -462,5 +526,6 @@ module.exports = {
   uploadMediaFiles,
   getTotalUnreadCount,
   toggleMessageReaction,
-  clearConversation
+  clearConversation,
+  getConversationMedia
 };

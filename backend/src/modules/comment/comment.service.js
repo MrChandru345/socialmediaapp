@@ -1,17 +1,21 @@
-﻿const { AppError, buildPaginationMeta, parsePagination, sanitizeUser } = require("../../utils/helpers");
+const { AppError, buildPaginationMeta, parsePagination, sanitizeUser } = require("../../utils/helpers");
 const { createNotification } = require("../notification/notification.service");
 const Post = require("../post/post.model");
 const Comment = require("./comment.model");
 
-function formatComment(comment) {
+function formatComment(comment, viewerId) {
   return {
     ...comment,
     id: String(comment._id),
-    author: sanitizeUser(comment.author)
+    author: sanitizeUser(comment.author),
+    likesCount: comment.likes?.length || 0,
+    likedByViewer: viewerId
+      ? comment.likes?.some((entry) => String(entry) === String(viewerId))
+      : false
   };
 }
 
-async function listComments(postId, query) {
+async function listComments(postId, query, viewerId) {
   const { page, limit, skip } = parsePagination(query);
   const filter = { post: postId };
 
@@ -26,7 +30,7 @@ async function listComments(postId, query) {
   ]);
 
   return {
-    items: comments.map(formatComment),
+    items: comments.map((comment) => formatComment(comment, viewerId)),
     meta: buildPaginationMeta(page, limit, total)
   };
 }
@@ -38,10 +42,18 @@ async function addComment(userId, postId, payload) {
     throw new AppError(400, "Comment content is required");
   }
 
-  const post = await Post.findById(postId).select("author commentsCount");
+  // Try finding in Post first, then Reel
+  const Reel = require("../reel/reel.model");
+  let parent = await Post.findById(postId).select("author commentsCount");
+  let modelName = "Post";
 
-  if (!post) {
-    throw new AppError(404, "Post not found");
+  if (!parent) {
+    parent = await Reel.findById(postId).select("author commentsCount");
+    modelName = "Reel";
+  }
+
+  if (!parent) {
+    throw new AppError(404, "Content not found");
   }
 
   const comment = await Comment.create({
@@ -51,17 +63,17 @@ async function addComment(userId, postId, payload) {
     parentComment: payload.parentCommentId || null
   });
 
-  post.commentsCount += 1;
-  await post.save();
+  parent.commentsCount += 1;
+  await parent.save();
 
-  if (String(post.author) !== String(userId)) {
+  if (String(parent.author) !== String(userId)) {
     await createNotification({
-      recipient: post.author,
+      recipient: parent.author,
       actor: userId,
       type: "comment",
-      entityId: post._id,
-      entityModel: "Post",
-      message: "commented on your post"
+      entityId: parent._id,
+      entityModel: modelName,
+      message: `commented on your ${modelName.toLowerCase()}`
     });
   }
 
@@ -69,7 +81,7 @@ async function addComment(userId, postId, payload) {
     .populate("author", "username fullName avatar role")
     .lean();
 
-  return formatComment(populatedComment);
+  return formatComment(populatedComment, userId);
 }
 
 async function deleteComment(userId, commentId, role) {
@@ -86,9 +98,11 @@ async function deleteComment(userId, commentId, role) {
     throw new AppError(403, "You do not have permission to delete this comment");
   }
 
+  const Reel = require("../reel/reel.model");
   await Promise.all([
     Comment.deleteOne({ _id: commentId }),
-    Post.findByIdAndUpdate(comment.post, { $inc: { commentsCount: -1 } })
+    Post.findByIdAndUpdate(comment.post, { $inc: { commentsCount: -1 } }),
+    Reel.findByIdAndUpdate(comment.post, { $inc: { commentsCount: -1 } })
   ]);
 
   return {
@@ -97,8 +111,43 @@ async function deleteComment(userId, commentId, role) {
   };
 }
 
+async function toggleLike(commentId, userId) {
+  const comment = await Comment.findById(commentId);
+
+  if (!comment) {
+    throw new AppError(404, "Comment not found");
+  }
+
+  const isLiked = comment.likes.some((entry) => String(entry) === String(userId));
+
+  if (isLiked) {
+    comment.likes.pull(userId);
+  } else {
+    comment.likes.addToSet(userId);
+  }
+
+  await comment.save();
+
+  if (!isLiked && String(comment.author) !== String(userId)) {
+    await createNotification({
+      recipient: comment.author,
+      actor: userId,
+      type: "like",
+      entityId: comment._id,
+      entityModel: "Comment",
+      message: "liked your comment"
+    });
+  }
+
+  return {
+    liked: !isLiked,
+    likesCount: comment.likes.length
+  };
+}
+
 module.exports = {
   addComment,
   deleteComment,
-  listComments
+  listComments,
+  toggleLike
 };

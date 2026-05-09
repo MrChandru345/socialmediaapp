@@ -1,4 +1,4 @@
-﻿const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
 const videoSchema = new mongoose.Schema(
   {
@@ -40,6 +40,12 @@ const reelSchema = new mongoose.Schema(
       required: true
     },
     likes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+      }
+    ],
+    saves: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"

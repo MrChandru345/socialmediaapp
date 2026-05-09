@@ -1,4 +1,4 @@
-﻿const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
 const mediaSchema = new mongoose.Schema(
   {
@@ -49,6 +49,11 @@ const storySchema = new mongoose.Schema(
       type: Date,
       required: true,
       index: { expires: 0 }
+    },
+    sharedPost: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Post",
+      default: null
     }
   },
   {

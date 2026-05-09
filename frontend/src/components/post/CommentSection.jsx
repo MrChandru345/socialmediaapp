@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { useAuth } from "../../hooks/useAuth";
 import { commentService } from "../../services/commentService";
@@ -111,14 +112,19 @@ export default function CommentSection({ count, onCountChange, postId }) {
 
                 return (
                   <div className="comment-item" key={commentId}>
-                    <img
-                      alt={getCommentAuthorLabel(comment)}
-                      className="comment-item__avatar"
-                      src={getAvatarForUser(comment.author, getCommentAuthorLabel(comment))}
-                    />
+                    <Link to={`/profile/${comment.author?.username || comment.author?.id}`}>
+                      <img
+                        alt={getCommentAuthorLabel(comment)}
+                        className="comment-item__avatar"
+                        src={getAvatarForUser(comment.author, getCommentAuthorLabel(comment))}
+                      />
+                    </Link>
                     <div className="comment-item__body">
                       <p>
-                        <strong>{getCommentAuthorLabel(comment)}</strong> {comment.content}
+                        <Link to={`/profile/${comment.author?.username || comment.author?.id}`}>
+                          <strong style={{ cursor: 'pointer', color: 'inherit', textDecoration: 'none' }}>{getCommentAuthorLabel(comment)}</strong>
+                        </Link>
+                        {" "}{comment.content}
                       </p>
                       <div className="comment-item__meta">
                         <span>{getCommentMeta(comment)}</span>

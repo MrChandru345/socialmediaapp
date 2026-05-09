@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect } from "react";
-import { getAvatarForUser } from "../../utils/helpers";
+import { Link } from "react-router-dom";
+import { getAvatarForUser, formatMessageTime, downloadResource } from "../../utils/helpers";
 
 export default function MessageBubble({ 
   message, 
   isMe, 
-  onDeleteMessage, 
-  onReplyMessage,
+  onDeleteMessage,
+  onReactToMessage, 
+  onReplyMessage, 
   onForwardMessage,
-  onReactToMessage,
-  onImageClick,
   onPostClick,
+  onMediaClick,
+  onShowEmojiPicker,
   currentUserId 
 }) {
   const [showMenu, setShowMenu] = useState(false);
@@ -21,8 +23,8 @@ export default function MessageBubble({
   const menuRef = useRef(null);
   const incoming = !isMe;
   const hasAttachments = message.attachments && message.attachments.length > 0;
-  // If the text is exactly 'Shared a post', we hide it since the visual card handles the intent natively unless they wrote a custom message
-  const hasText = message.text && message.text.trim().length > 0 && message.text !== "Shared a post";
+  // If the text is exactly 'Shared a post' or 'Shared a reel', we hide it since the visual card handles the intent natively unless they wrote a custom message
+  const hasText = message.text && message.text.trim().length > 0 && message.text !== "Shared a post" && message.text !== "Shared a reel";
 
   const quickEmojis = ["❤️", "😂", "😮", "😢", "🔥", "👍"];
 
@@ -76,7 +78,11 @@ export default function MessageBubble({
 
   return (
     <div className={`message-row ${incoming ? "message-row--incoming" : "message-row--outgoing"}`}>
-      {incoming && <img alt="User avatar" className="message-row__avatar" src={message.avatar} />}
+      {incoming && (
+        <Link to={`/profile/${message.senderUsername || message.senderId}`}>
+          <img alt="User avatar" className="message-row__avatar" src={message.avatar} style={{ cursor: 'pointer' }} />
+        </Link>
+      )}
       
       <div className="message-content-wrapper">
         {hasAttachments && (
@@ -100,7 +106,15 @@ export default function MessageBubble({
                   />
                 );
               } else if (hasVideoType) {
-                return <video key={index} src={url} controls className="message-attachment-media" />;
+                return (
+                  <video 
+                    key={index} 
+                    src={url} 
+                    className="message-attachment-media" 
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => onMediaClick?.(url, 'video')}
+                  />
+                );
               } else if (hasImageType) {
                 return (
                   <img 
@@ -109,13 +123,23 @@ export default function MessageBubble({
                     alt="Attachment" 
                     className="message-attachment-media" 
                     style={{ cursor: 'pointer' }}
-                    onClick={() => onImageClick && onImageClick(url)}
+                    onClick={() => onMediaClick?.(url, 'image')}
                   />
                 );
               } else {
                 // Fallback for document or unknown
                 return (
-                  <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="message-attachment-doc">
+                  <a 
+                    key={index} 
+                    href={url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="message-attachment-doc"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      downloadResource(url, `attachment_${Date.now()}`);
+                    }}
+                  >
                     <span className="material-symbols-outlined">description</span>
                     <span>Document</span>
                   </a>
@@ -168,7 +192,7 @@ export default function MessageBubble({
                     );
 
                     return (
-                      <div className="shared-post-card__media">
+                      <div className="shared-post-card__media" style={{ cursor: 'pointer' }}>
                         {media.type === "video" ? (
                           <div style={{ position: 'relative' }}>
                             <video src={media.url} className="shared-post-card__img" />
@@ -259,8 +283,8 @@ export default function MessageBubble({
           </div>
         )}
 
-        {/* If no text but has attachments, put reactions on attachments */}
-        {!hasText && hasAttachments && message.reactions && message.reactions.length > 0 && (
+        {/* If no text but has attachments or shared post, put reactions on them */}
+        {!hasText && (hasAttachments || message.sharedPost) && message.reactions && message.reactions.length > 0 && (
           <div className="message-reactions-pill--on-media" style={{ position: 'relative', marginTop: '-10px' }}>
              <div className={`message-reactions-pill ${incoming ? "message-reactions-pill--incoming" : "message-reactions-pill--outgoing"}`}>
                 {Object.entries(
@@ -312,9 +336,13 @@ export default function MessageBubble({
           </div>
         )}
 
-        <span className="message-timestamp">
-          {message.time} {isMe && message.seen && " • Seen"}
-        </span>
+
+        <div className="message-bubble-row">
+          <span className="message-timestamp message-timestamp--hover">
+            {message.time}
+            {isMe && message.seen && " · Seen"}
+          </span>
+        </div>
       </div>
 
       <div className={`message-actions ${incoming ? "message-actions--incoming" : "message-actions--outgoing"}`} ref={menuRef}>
@@ -335,7 +363,15 @@ export default function MessageBubble({
               ))}
               
               {!showMoreEmojis && (
-                <button className="reaction-emoji-btn plus-btn" onClick={(e) => { e.stopPropagation(); setShowMoreEmojis(true); }}>
+                <button 
+                  className="reaction-emoji-btn plus-btn" 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    onShowEmojiPicker?.(message.id, rect);
+                    setShowReactionPicker(false);
+                  }}
+                >
                   <span className="material-symbols-outlined">add</span>
                 </button>
               )}

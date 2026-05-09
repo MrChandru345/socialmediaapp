@@ -97,7 +97,12 @@ async function getFeed(userId, query) {
   }
 
   const authorIds = [userId, ...(currentUser.following || [])];
-  const filter = { author: { $in: authorIds } };
+  const filter = {
+    $or: [
+      { visibility: "public" },
+      { author: { $in: authorIds } }
+    ]
+  };
 
   const [posts, total] = await Promise.all([
     Post.find(filter)

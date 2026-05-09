@@ -69,6 +69,7 @@ async function createStory(userId, payload, file) {
     author: userId,
     media,
     caption: payload.caption?.trim() || "",
+    sharedPost: payload.sharedPost || null,
     expiresAt
   });
 

@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import ShareModal from "../common/ShareModal";
+import ConfirmModal from "../common/ConfirmModal";
 import { useAuth } from "../../hooks/useAuth";
 import { postService } from "../../services/postService";
+import { reelService } from "../../services/reelService";
 import { commentService } from "../../services/commentService";
 import {
   createOptimisticPost,
@@ -17,13 +20,14 @@ import {
   getAvatarForUser,
   getCommentMeta,
   getCommentId,
-  isOwnResource
+  isOwnResource,
+  isReel
 } from "../../utils/helpers";
 import LikeButton from "./LikeButton";
 import Loader from "../common/Loader";
 
-/* Mini dropdown for each comment */
-function CommentMenu({ onDelete }) {
+/* Mini dropdown for each comment or post */
+function ContentMenu({ onDelete, isDeletePending }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -48,10 +52,11 @@ function CommentMenu({ onDelete }) {
         <div className="comment-dropdown">
           <button
             className="comment-dropdown-item danger"
+            disabled={isDeletePending}
             onClick={() => { setOpen(false); onDelete(); }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
-            Delete
+            {isDeletePending ? "Deleting..." : "Delete"}
           </button>
         </div>
       )}
@@ -68,6 +73,9 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLikePending, setIsLikePending] = useState(false);
   const [isSavePending, setIsSavePending] = useState(false);
+  const [isDeletePending, setIsDeletePending] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
     if (post && open) {
@@ -96,7 +104,11 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
     if (!currentPost) return;
     setIsLikePending(true);
     try {
-      const result = await postService.toggleLike(currentPost.id);
+      const isPostReel = isReel(currentPost);
+      const result = isPostReel 
+        ? await reelService.toggleLike(currentPost.id)
+        : await postService.toggleLike(currentPost.id);
+        
       const updated = { ...currentPost, likedByViewer: result.liked, likesCount: result.likesCount };
       setCurrentPost(updated);
       onPostUpdated?.(updated);
@@ -107,11 +119,34 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
     }
   }
 
+  async function handleDeletePost() {
+    if (!currentPost) return;
+    setIsDeletePending(true);
+    try {
+      const isPostReel = isReel(currentPost);
+      if (isPostReel) {
+        await reelService.remove(currentPost.id);
+      } else {
+        await postService.remove(currentPost.id);
+      }
+      onPostUpdated?.({ id: currentPost.id, deleted: true });
+      onClose();
+    } catch (e) {
+      alert(getApiErrorMessage(e, "Failed to delete content."));
+      setIsDeletePending(false);
+      setIsConfirmDeleteOpen(false);
+    }
+  }
+
   async function handleSave() {
     if (!currentPost) return;
     setIsSavePending(true);
     try {
-      const result = await postService.toggleSave(currentPost.id);
+      const isPostReel = isReel(currentPost);
+      const result = isPostReel
+        ? await reelService.toggleSave(currentPost.id)
+        : await postService.toggleSave(currentPost.id);
+        
       const updated = { ...currentPost, savedByViewer: result.saved, savesCount: result.savesCount };
       setCurrentPost(updated);
       onPostUpdated?.(updated);
@@ -206,6 +241,10 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
                 )}
               </div>
             </Link>
+
+            {isOwnResource(currentPost.author?.id, user?.id) && (
+              <ContentMenu onDelete={() => setIsConfirmDeleteOpen(true)} isDeletePending={isDeletePending} />
+            )}
           </div>
 
           {/* Scrollable thread */}
@@ -257,7 +296,7 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
                       </div>
                     </div>
                     {isOwn && (
-                      <CommentMenu onDelete={() => handleDeleteComment(cid)} />
+                      <ContentMenu onDelete={() => handleDeleteComment(cid)} />
                     )}
                   </div>
                 );
@@ -281,6 +320,12 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
                 >
                   <span className="material-symbols-outlined">chat_bubble</span>
                   <span>{currentPost.commentsCount || 0}</span>
+                </button>
+                <button
+                  className="metric-button"
+                  onClick={() => setIsShareOpen(true)}
+                >
+                  <span className="material-symbols-outlined">send</span>
                 </button>
               </div>
               <button className="icon-button" disabled={isSavePending} onClick={handleSave}>
@@ -311,6 +356,27 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
           </form>
         </div>
       </div>
+
+      {isShareOpen && (
+        <ShareModal 
+          isOpen={isShareOpen} 
+          onClose={() => setIsShareOpen(false)} 
+          payload={{ 
+            body: isReel(currentPost) ? "Shared a reel" : "Shared a post", 
+            sharedPost: currentPost.id,
+            media: getPostMedia(currentPost)
+          }} 
+        />
+      )}
+
+      <ConfirmModal 
+        isOpen={isConfirmDeleteOpen}
+        isLoading={isDeletePending}
+        onClose={() => setIsConfirmDeleteOpen(false)}
+        onConfirm={handleDeletePost}
+        title="Delete Post?"
+        message="Are you sure you want to delete this permanently? This action cannot be undone."
+      />
     </div>
   );
 }

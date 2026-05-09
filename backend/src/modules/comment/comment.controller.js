@@ -1,8 +1,8 @@
-﻿const { asyncHandler } = require("../../middleware/error.middleware");
-const { addComment, deleteComment, listComments } = require("./comment.service");
+const { asyncHandler } = require("../../middleware/error.middleware");
+const { addComment, deleteComment, listComments, toggleLike } = require("./comment.service");
 
 const getCommentsForPost = asyncHandler(async (req, res) => {
-  const comments = await listComments(req.params.postId, req.query);
+  const comments = await listComments(req.params.postId, req.query, req.user?._id);
 
   res.json({
     success: true,
@@ -30,8 +30,18 @@ const removeComment = asyncHandler(async (req, res) => {
   });
 });
 
+const toggleLikeComment = asyncHandler(async (req, res) => {
+  const result = await toggleLike(req.params.commentId, req.user._id);
+
+  res.json({
+    success: true,
+    data: result
+  });
+});
+
 module.exports = {
   createComment,
   getCommentsForPost,
-  removeComment
+  removeComment,
+  toggleLikeComment
 };

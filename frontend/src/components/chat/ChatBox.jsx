@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import EmojiPicker from "emoji-picker-react";
 
@@ -6,7 +6,7 @@ import { useAuthContext } from "../../context/AuthContext";
 import { useSocketContext } from "../../context/SocketContext";
 import { chatService } from "../../services/chatService";
 import { userService } from "../../services/userService";
-import { getAvatarForUser } from "../../utils/helpers";
+import { getAvatarForUser, formatDateSeparator, isSameDay, downloadResource, formatLastSeen } from "../../utils/helpers";
 import ShareModal from "../common/ShareModal";
 import MessageBubble from "./MessageBubble";
 import PostModal from "../post/PostModal";
@@ -50,12 +50,21 @@ export default function ChatBox() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
   const [isSending, setIsSending] = useState(false);
-  const [viewerImage, setViewerImage] = useState(null);
+  const [viewerMedia, setViewerMedia] = useState(null); // { url, type }
 
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
   const [messageSearchQuery, setMessageSearchQuery] = useState("");
   const [messageSearchResults, setMessageSearchResults] = useState([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  
+  const [conversationMedia, setConversationMedia] = useState([]);
+  const [isLoadingMedia, setIsLoadingMedia] = useState(false);
+  const [emojiPickerConfig, setEmojiPickerConfig] = useState({ 
+    isOpen: false, 
+    messageId: null, 
+    position: { top: 0, left: 0 } 
+  });
+  const [isMessagesLoading, setIsMessagesLoading] = useState(false);
   
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -131,13 +140,16 @@ export default function ChatBox() {
     setReplyingToMessage(null); // Clear any pending reply
     
     async function loadMessages() {
+      setIsMessagesLoading(true);
       try {
         const data = await chatService.getMessages(activeConversationId);
         setMessages(data.items);
-        scrollToBottom();
+        scrollToBottom(true);
         chatService.markConversationSeen(activeConversationId);
       } catch (error) {
         console.error("Failed to load messages:", error);
+      } finally {
+        setIsMessagesLoading(false);
       }
     }
     loadMessages();
@@ -164,7 +176,7 @@ export default function ChatBox() {
 
       if (isWithActive) {
         setMessages((prev) => [...prev, message]);
-        scrollToBottom();
+        scrollToBottom(false);
         if (!isFromMe) {
           chatService.markConversationSeen(activeConversationId);
         }
@@ -281,10 +293,33 @@ export default function ChatBox() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showConvMenu]);
 
-  function scrollToBottom() {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+  useEffect(() => {
+    if (showUserInfo && activeConversationId) {
+      async function fetchMedia() {
+        setIsLoadingMedia(true);
+        try {
+          const media = await chatService.getMedia(activeConversationId);
+          setConversationMedia(media);
+        } catch (error) {
+          console.error("Failed to fetch media:", error);
+        } finally {
+          setIsLoadingMedia(false);
+        }
+      }
+      fetchMedia();
+    }
+  }, [showUserInfo, activeConversationId]);
+
+  function scrollToBottom(instant = false) {
+    const scroll = () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: instant ? "auto" : "smooth" });
+    };
+    
+    if (instant) {
+      setTimeout(scroll, 0);
+    } else {
+      setTimeout(scroll, 100);
+    }
   }
 
   function handleDraftChange(e) {
@@ -615,6 +650,10 @@ export default function ChatBox() {
     setMessageSearchQuery("");
   }
 
+  const handleDownloadImage = (imageUrl) => {
+    downloadResource(imageUrl, `chat_image_${Date.now()}.jpg`);
+  };
+
   if (loading) {
     return (
       <div className="chat-layout chat-layout--loading">
@@ -785,7 +824,7 @@ export default function ChatBox() {
         </div>
       </div>
 
-      <div className="chat-window">
+      <div className={`chat-window ${isMessagesLoading ? 'chat-window--switching' : ''}`}>
         {activeConversation ? (
           <>
             <header className="chat-window__header">
@@ -793,7 +832,13 @@ export default function ChatBox() {
                 <img alt={activeConversation.otherUser.fullName} src={getAvatarForUser(activeConversation.otherUser)} />
                 <div className="chat-identity__info">
                   <h3>{activeConversation.otherUser.fullName}</h3>
-                  <p>{activeConversation.otherUser.username}</p>
+                  <p className="chat-identity__status">
+                    {otherUserTyping ? (
+                      <span className="typing-text">typing...</span>
+                    ) : (
+                      formatLastSeen(activeConversation.otherUser) || activeConversation.otherUser.username
+                    )}
+                  </p>
                 </div>
               </div>
               <div className="chat-window__actions">
@@ -808,33 +853,52 @@ export default function ChatBox() {
               </div>
             </header>
 
-            <div className="chat-window__messages">
-              {messages.map((message) => (
-                <MessageBubble
-                  isMe={message.sender.id === user.id}
-                  currentUserId={user.id}
-                  key={message.id || message._id}
-                  onDeleteMessage={handleDeleteMessage}
-                  onReplyMessage={handleReplyMessage}
-                  onForwardMessage={setMessageToForward}
-                  onPostClick={handlePostClick}
-                  onReactToMessage={handleReactToMessage}
-                  onImageClick={(url) => setViewerImage(url)}
-                  message={{
-                    id: message.id || message._id,
-                    text: message.body,
-                    time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    avatar: getAvatarForUser(message.sender),
-                    seen: !!message.seenAt,
-                    attachments: message.attachments,
-                    senderId: message.sender.id || message.sender._id,
-                    senderUsername: message.sender.username,
-                    replyTo: message.replyTo,
-                    reactions: message.reactions || [],
-                    sharedPost: message.sharedPost || null
-                  }}
-                />
-              ))}
+            <div className="chat-window__messages" style={{ opacity: isMessagesLoading ? 0 : 1, visibility: isMessagesLoading ? 'hidden' : 'visible' }}>
+              {messages.map((message, index) => {
+                const prevMessage = messages[index - 1];
+                const showSeparator = !prevMessage || !isSameDay(prevMessage.createdAt, message.createdAt);
+
+                return (
+                  <React.Fragment key={message.id || message._id}>
+                    {showSeparator && (
+                      <div className="chat-date-separator">
+                        <span>{formatDateSeparator(message.createdAt)}</span>
+                      </div>
+                    )}
+                    <MessageBubble
+                      isMe={message.sender.id === user.id}
+                      currentUserId={user.id}
+                      onDeleteMessage={handleDeleteMessage}
+                      onReplyMessage={handleReplyMessage}
+                      onForwardMessage={setMessageToForward}
+                      onPostClick={handlePostClick}
+                      onReactToMessage={handleReactToMessage}
+                      onMediaClick={(url, type) => setViewerMedia({ url, type })}
+                      onShowEmojiPicker={(messageId, rect) => {
+                        setEmojiPickerConfig({
+                          isOpen: true,
+                          messageId,
+                          position: { top: rect.top, left: rect.left }
+                        });
+                      }}
+                      message={{
+                        id: message.id || message._id,
+                        text: message.body,
+                        createdAt: message.createdAt,
+                        time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        avatar: getAvatarForUser(message.sender),
+                        seen: !!message.seenAt,
+                        attachments: message.attachments,
+                        senderId: message.sender.id || message.sender._id,
+                        senderUsername: message.sender.username,
+                        replyTo: message.replyTo,
+                        reactions: message.reactions || [],
+                        sharedPost: message.sharedPost || null
+                      }}
+                    />
+                  </React.Fragment>
+                );
+              })}
               {otherUserTyping && (
                 <div className="message-row message-row--incoming">
                   <img alt="Typing indicator" className="message-row__avatar" src={getAvatarForUser(activeConversation.otherUser)} />
@@ -1016,6 +1080,38 @@ export default function ChatBox() {
                           }
                         </span>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="info-sidebar__section">
+                    <h4 className="section-title">Media, links and docs</h4>
+                    <div className="media-gallery">
+                      {isLoadingMedia ? (
+                        <div className="media-gallery-loading">
+                          <span className="material-symbols-outlined spin">progress_activity</span>
+                        </div>
+                      ) : conversationMedia.length > 0 ? (
+                        <div className="media-gallery-grid">
+                          {conversationMedia.map((m, i) => (
+                            <div 
+                              key={i} 
+                              className="media-gallery-item" 
+                              onClick={() => setViewerMedia({ url: m.url, type: m.type })}
+                            >
+                              {m.type === 'video' ? (
+                                <div className="video-thumb">
+                                  <video src={m.url} />
+                                  <span className="material-symbols-outlined">play_circle</span>
+                                </div>
+                              ) : (
+                                <img src={m.url} alt="Shared media" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="no-media-text">No shared media found</p>
+                      )}
                     </div>
                   </div>
 
@@ -1281,31 +1377,33 @@ export default function ChatBox() {
         </div>
       )}
 
-      {viewerImage && (
-        <div className="image-viewer-overlay viewer-animate-in" onClick={() => setViewerImage(null)}>
+      {viewerMedia && (
+        <div className="image-viewer-overlay viewer-animate-in" onClick={() => setViewerMedia(null)}>
           <div className="viewer-controls" onClick={e => e.stopPropagation()}>
-            <button className="viewer-btn" onClick={() => {
-              const link = document.createElement("a");
-              link.href = viewerImage;
-              link.target = "_blank";
-              link.download = `chat_image_${Date.now()}.jpg`;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }}>
+            <button className="viewer-btn" onClick={() => downloadResource(viewerMedia.url)}>
               <span className="material-symbols-outlined">download</span>
               Save
             </button>
-            <button className="viewer-btn" onClick={() => setViewerImage(null)}>
+            <button className="viewer-btn" onClick={() => setViewerMedia(null)}>
               <span className="material-symbols-outlined">close</span>
             </button>
           </div>
-          <img 
-            src={viewerImage} 
-            alt="Full screen viewer" 
-            className="viewer-main-image" 
-            onClick={e => e.stopPropagation()} 
-          />
+          {viewerMedia.type === 'video' ? (
+            <video 
+              src={viewerMedia.url} 
+              controls 
+              autoPlay 
+              className="viewer-main-media" 
+              onClick={e => e.stopPropagation()} 
+            />
+          ) : (
+            <img 
+              src={viewerMedia.url} 
+              alt="Full screen viewer" 
+              className="viewer-main-media" 
+              onClick={e => e.stopPropagation()} 
+            />
+          )}
         </div>
       )}
       <PostModal 
@@ -1313,6 +1411,34 @@ export default function ChatBox() {
         post={selectedPostForModal}
         onClose={() => setIsPostModalOpen(false)}
       />
+
+      {emojiPickerConfig.isOpen && (
+        <div 
+          className="reaction-emoji-picker-overlay" 
+          onClick={() => setEmojiPickerConfig({ ...emojiPickerConfig, isOpen: false })}
+        >
+          <div 
+            className="reaction-emoji-picker-content animate-in"
+            style={{ 
+              position: 'fixed', 
+              top: `${Math.min(window.innerHeight - 450, emojiPickerConfig.position.top)}px`, 
+              left: `${Math.min(window.innerWidth - 350, emojiPickerConfig.position.left)}px`,
+              zIndex: 10000 
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <EmojiPicker 
+              onEmojiClick={(emoji) => {
+                handleReactToMessage(emojiPickerConfig.messageId, emoji.emoji);
+                setEmojiPickerConfig({ ...emojiPickerConfig, isOpen: false });
+              }}
+              theme="auto"
+              width={320}
+              height={400}
+            />
+          </div>
+        </div>
+      )}
     </section>
   );
 }

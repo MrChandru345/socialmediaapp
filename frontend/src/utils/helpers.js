@@ -62,8 +62,100 @@ export function formatRelativeTime(value) {
   });
 }
 
+/**
+ * Formats a message timestamp:
+ * - Today        → "6:42 PM"
+ * - Yesterday/within this week (< 7 days) → "Sun 6:42 PM"
+ * - Older than 1 week → "Apr 14, 2026, 11:25 PM"
+ */
+export function formatMessageTime(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const now = new Date();
+
+  // Strip times to compare calendar days
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const diffDays = Math.round((today - msgDay) / (1000 * 60 * 60 * 24));
+
+  const timeStr = date.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+
+  if (diffDays === 0) {
+    // Today — time only
+    return timeStr;
+  }
+
+  if (diffDays < 7) {
+    // Yesterday or within this week — "Sun 6:42 PM"
+    const dayName = date.toLocaleString("en-US", { weekday: "short" });
+    return `${dayName} ${timeStr}`;
+  }
+
+  // Older than 1 week — "Apr 14, 2026, 11:25 PM"
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true
+  });
+}
+
+/**
+ * Returns a centered date-separator label for chat messages:
+ * - Today     → "Today"
+ * - Yesterday → "Yesterday"
+ * - Within 7 days → "Monday"
+ * - Older     → "Apr 14, 2026"
+ */
+export function formatDateSeparator(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((today - msgDay) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return date.toLocaleString("en-US", { weekday: "long" });
+
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
+export function isSameDay(a, b) {
+  if (!a || !b) return false;
+  const da = new Date(a);
+  const db = new Date(b);
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
+}
+
 export function getDisplayName(user, fallback = "Curator") {
   return user?.fullName || user?.username || fallback;
+}
+
+export function formatLastSeen(user) {
+  if (user?.isOnline) return "Active now";
+  if (!user?.lastSeen) return "";
+  
+  const relative = formatRelativeTime(user.lastSeen);
+  return `Active ${relative}`;
 }
 
 export function getHandle(user) {
@@ -75,7 +167,12 @@ export function getUserLocation(user) {
 }
 
 export function resolvePrimaryMedia(post) {
+  if (post?.video) return post.video;
   return post?.media?.[0] || null;
+}
+
+export function isReel(post) {
+  return Boolean(post?.isReel || post?.video);
 }
 
 export function truncateText(value, maxLength = 140) {
@@ -115,9 +212,9 @@ export function createOptimisticPost(post) {
     ...post,
     commentsCount: post.commentsCount || 0,
     likedByViewer: Boolean(post.likedByViewer),
-    likesCount: post.likesCount || 0,
+    likesCount: getPostLikeCount(post),
     savedByViewer: Boolean(post.savedByViewer),
-    savesCount: post.savesCount || 0
+    savesCount: getPostSaveCount(post)
   };
 }
 
@@ -198,11 +295,15 @@ export function getPostCommentCount(post) {
 }
 
 export function getPostLikeCount(post) {
-  return post?.likesCount || 0;
+  if (post?.likesCount !== undefined) return post.likesCount;
+  if (Array.isArray(post?.likes)) return post.likes.length;
+  return 0;
 }
 
 export function getPostSaveCount(post) {
-  return post?.savesCount || 0;
+  if (post?.savesCount !== undefined) return post.savesCount;
+  if (Array.isArray(post?.saves)) return post.saves.length;
+  return 0;
 }
 
 export function getCommentMeta(comment) {
@@ -351,4 +452,27 @@ export function withDelay(value, ms = 350) {
   return new Promise((resolve) => {
     window.setTimeout(() => resolve(value), ms);
   });
+}
+export async function downloadResource(url, filename = `file_${Date.now()}`) {
+  if (!url) return;
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const objectUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(objectUrl);
+  } catch (error) {
+    console.error("Download failed:", error);
+    // Fallback: Try opening in a new tab if fetch fails (e.g. CORS)
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.download = filename;
+    link.click();
+  }
 }

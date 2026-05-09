@@ -28,6 +28,7 @@ export default function ProfileHeader({
   return (
     <section className="profile-hero-premium modern-glass radius-xl">
       <div className="profile-hero-banner">
+        <div className="profile-hero-banner-overlay"></div>
         {!isOwnProfile && (
           <button 
             onClick={() => navigate(-1)} 
@@ -73,8 +74,14 @@ export default function ProfileHeader({
                 <Button onClick={onEditProfile} size="sm" variant="outline" className="radius-full premium-btn">
                   Edit Profile
                 </Button>
-                <Button onClick={onCreatePost} size="sm" variant="primary" className="radius-full premium-btn">
-                  Create Post
+                <Button 
+                  onClick={onCreatePost} 
+                  size="sm" 
+                  variant="primary" 
+                  className="radius-full premium-btn creation-plus-btn"
+                  title="Create new"
+                >
+                  <span className="material-symbols-outlined">add</span>
                 </Button>
               </>
             ) : (
@@ -133,6 +140,35 @@ export default function ProfileHeader({
                 </a>
               )}
             </div>
+
+            {profile.mutualFollowers && profile.mutualFollowers.totalCount > 0 && (
+              <div className="mutual-followers-section">
+                <div className="mutual-avatars">
+                  {profile.mutualFollowers.users.map((u, i) => (
+                    <img 
+                      key={u.id} 
+                      src={getAvatarForUser(u)} 
+                      alt={u.username} 
+                      className="mutual-avatar"
+                      style={{ zIndex: profile.mutualFollowers.users.length - i }}
+                      onClick={() => navigate(`/profile/${u.username}`)}
+                    />
+                  ))}
+                </div>
+                <p className="mutual-text">
+                  Followed by <strong>{profile.mutualFollowers.users[0].username}</strong>
+                  {profile.mutualFollowers.totalCount === 2 && (
+                    <> and <strong>{profile.mutualFollowers.users[1].username}</strong></>
+                  )}
+                  {profile.mutualFollowers.totalCount > 2 && (
+                    <>
+                      , <strong>{profile.mutualFollowers.users[1].username}</strong> and 
+                      <strong> {profile.mutualFollowers.totalCount - 2} others</strong>
+                    </>
+                  )}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

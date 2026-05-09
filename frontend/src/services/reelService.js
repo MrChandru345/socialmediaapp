@@ -20,6 +20,10 @@ export const reelService = {
   async remove(reelId) {
     const response = await api.delete(`/reels/${reelId}`);
     return response.data.data;
+  },
+  async toggleSave(reelId) {
+    const response = await api.post(`/reels/${reelId}/save`);
+    return response.data.data;
   }
 };
 

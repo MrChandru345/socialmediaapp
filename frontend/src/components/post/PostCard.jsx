@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ShareModal from "../common/ShareModal";
+import ConfirmModal from "../common/ConfirmModal";
 
 import { useAuth } from "../../hooks/useAuth";
 import { postService } from "../../services/postService";
+import { reelService } from "../../services/reelService";
 import {
   createOptimisticPost,
   getApiErrorMessage,
@@ -17,7 +19,8 @@ import {
   getPostMedia,
   getPostTimestamp,
   isOwnResource,
-  isVideoMedia
+  isVideoMedia,
+  isReel
 } from "../../utils/helpers";
 import CommentSection from "./CommentSection";
 import LikeButton from "./LikeButton";
@@ -30,6 +33,7 @@ export default function PostCard({ onRemove, post }) {
   const [isLikePending, setIsLikePending] = useState(false);
   const [isSavePending, setIsSavePending] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
     setCurrentPost(createOptimisticPost(post));
@@ -44,7 +48,11 @@ export default function PostCard({ onRemove, post }) {
     setError("");
 
     try {
-      const result = await postService.toggleLike(currentPost.id);
+      const isPostReel = isReel(currentPost);
+      const result = isPostReel 
+        ? await reelService.toggleLike(currentPost.id)
+        : await postService.toggleLike(currentPost.id);
+        
       setCurrentPost((existingPost) => ({
         ...existingPost,
         likedByViewer: result.liked,
@@ -76,21 +84,22 @@ export default function PostCard({ onRemove, post }) {
   }
 
   async function handleDelete() {
-    const confirmed = window.confirm("Delete this post from your feed?");
-
-    if (!confirmed) {
-      return;
-    }
 
     setIsDeleting(true);
     setError("");
 
     try {
-      await postService.remove(currentPost.id);
+      const isPostReel = isReel(currentPost);
+      if (isPostReel) {
+        await reelService.remove(currentPost.id);
+      } else {
+        await postService.remove(currentPost.id);
+      }
       onRemove?.(currentPost.id);
     } catch (caughtError) {
       setError(getApiErrorMessage(caughtError, "Unable to delete this post."));
       setIsDeleting(false);
+      setIsConfirmOpen(false);
     }
   }
 
@@ -111,7 +120,7 @@ export default function PostCard({ onRemove, post }) {
           </div>
         </Link>
         {isOwnPost ? (
-          <button className="icon-button" disabled={isDeleting} onClick={handleDelete} type="button">
+          <button className="icon-button" disabled={isDeleting} onClick={() => setIsConfirmOpen(true)} type="button">
             <span className="material-symbols-outlined">
               {isDeleting ? "hourglass_top" : "delete"}
             </span>
@@ -151,7 +160,15 @@ export default function PostCard({ onRemove, post }) {
               <span className="material-symbols-outlined">chat_bubble</span>
               <span>{getPostCommentCount(currentPost)}</span>
             </button>
-            <button className="metric-button" type="button" onClick={() => setIsShareOpen(true)}>
+            <button 
+              className="metric-button" 
+              type="button" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsShareOpen(true);
+              }}
+            >
               <span className="material-symbols-outlined">send</span>
             </button>
           </div>
@@ -192,10 +209,20 @@ export default function PostCard({ onRemove, post }) {
           onClose={() => setIsShareOpen(false)} 
           payload={{ 
             body: "Shared a post", 
-            sharedPost: currentPost._id || currentPost.id 
+            sharedPost: currentPost._id || currentPost.id,
+            media: getPostMedia(currentPost)
           }} 
         />
       )}
+
+      <ConfirmModal 
+        isOpen={isConfirmOpen}
+        isLoading={isDeleting}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Post?"
+        message="Are you sure you want to delete this permanently? This action cannot be undone."
+      />
     </article>
   );
 }

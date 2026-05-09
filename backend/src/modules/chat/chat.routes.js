@@ -13,7 +13,8 @@ const {
   removeNote,
   getUnreadCount,
   reactToMessage,
-  removeConversation
+  removeConversation,
+  getMedia
 } = require("./chat.controller");
 
 const router = express.Router();
@@ -27,6 +28,7 @@ router.get("/unread-count", getUnreadCount);
 router.get("/conversations", getConversationList);
 router.delete("/conversations/:withUserId", removeConversation);
 router.get("/:withUserId", getMessages);
+router.get("/:withUserId/media", getMedia);
 router.post("/:receiverId", upload.array("attachments", 10), createMessage);
 router.patch("/:withUserId/seen", markSeen);
 router.post("/message/:messageId/react", reactToMessage);

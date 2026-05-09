@@ -76,10 +76,46 @@ async function findProfileUser(identifier) {
   return user;
 }
 
+async function getMutualFollowers(viewerId, targetId) {
+  if (!viewerId || !targetId || String(viewerId) === String(targetId)) {
+    return null;
+  }
+
+  const [viewer, target] = await Promise.all([
+    User.findById(viewerId).select("following").lean(),
+    User.findById(targetId).select("followers").lean()
+  ]);
+
+  if (!viewer || !target) return null;
+
+  const viewerFollowing = new Set((viewer.following || []).map(id => String(id)));
+  const targetFollowers = (target.followers || []).map(id => String(id));
+
+  const mutualIds = targetFollowers.filter(id => viewerFollowing.has(id));
+
+  if (mutualIds.length === 0) return null;
+
+  const mutualUsers = await User.find({ _id: { $in: mutualIds } })
+    .select("username fullName avatar")
+    .limit(3)
+    .lean();
+
+  return {
+    users: mutualUsers.map(u => sanitizeUser(u)),
+    totalCount: mutualIds.length
+  };
+}
+
 async function getProfile(identifier, viewerId) {
   const user = await findProfileUser(identifier);
   const postCount = await Post.countDocuments({ author: user._id });
-  return sanitizeProfile(user, viewerId, postCount);
+  const profile = sanitizeProfile(user, viewerId, postCount);
+  
+  if (viewerId && String(user._id) !== String(viewerId)) {
+    profile.mutualFollowers = await getMutualFollowers(viewerId, user._id);
+  }
+  
+  return profile;
 }
 
 async function getProfilePosts(identifier, viewerId, query) {
@@ -334,11 +370,13 @@ async function getSavedPosts(userId, query) {
   const user = await User.findById(userId)
     .populate({
       path: "savedPosts",
-      options: {
-        sort: { createdAt: -1 },
-        skip,
-        limit
-      },
+      populate: {
+        path: "author",
+        select: "username fullName avatar location role"
+      }
+    })
+    .populate({
+      path: "savedReels",
       populate: {
         path: "author",
         select: "username fullName avatar location role"
@@ -350,11 +388,16 @@ async function getSavedPosts(userId, query) {
     throw new AppError(404, "User not found");
   }
 
-  const savedPostsCount = await User.findById(userId).select("savedPosts").lean();
-  const total = savedPostsCount?.savedPosts?.length || 0;
+  const combined = [
+    ...(user.savedPosts || []).filter(Boolean).map((post) => formatProfilePost(post, userId)),
+    ...(user.savedReels || []).filter(Boolean).map((reel) => formatProfilePost(reel, userId))
+  ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const total = combined.length;
+  const items = combined.slice(skip, skip + limit);
 
   return {
-    items: (user.savedPosts || []).map((post) => formatProfilePost(post, userId)),
+    items,
     meta: buildPaginationMeta(page, limit, total)
   };
 }
