@@ -7,7 +7,7 @@ import Modal from "./Modal";
 import Button from "./Button";
 import Loader from "./Loader";
 
-export default function ShareModal({ isOpen, onClose, payload }) {
+export default function ShareModal({ isOpen, onAddedToStory, onClose, payload }) {
   const [query, setQuery] = useState("");
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -99,12 +99,13 @@ export default function ShareModal({ isOpen, onClose, payload }) {
     setIsSending(true);
 
     try {
-      await storyService.create({
+      const createdStory = await storyService.create({
         mediaUrl: payload.media.url,
         mediaType: payload.media.type,
         sharedPost: payload.sharedPost,
         caption: ""
       });
+      onAddedToStory?.(createdStory);
       onClose();
     } catch (error) {
       console.error("Failed to add to story", error);

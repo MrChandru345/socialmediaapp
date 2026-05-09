@@ -325,6 +325,7 @@ async function sendMessage(userId, receiverId, payload, files) {
 
 async function markConversationSeen(userId, withUserId) {
   const roomId = buildRoomId(userId, withUserId);
+  const seenAt = new Date();
 
   const result = await Message.updateMany(
     {
@@ -333,19 +334,21 @@ async function markConversationSeen(userId, withUserId) {
       seenAt: null
     },
     {
-      $set: { seenAt: new Date() }
+      $set: { seenAt }
     }
   );
 
   emitUserEvent(withUserId, "chat:seen", {
     byUserId: String(userId),
-    roomId
+    roomId,
+    seenAt
   });
 
   // Also emit to the current user to sync all their open tabs
   emitUserEvent(userId, "chat:seen", {
     byUserId: String(userId),
-    roomId
+    roomId,
+    seenAt
   });
 
   return {

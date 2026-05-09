@@ -6,7 +6,14 @@ import { useAuthContext } from "../../context/AuthContext";
 import { useSocketContext } from "../../context/SocketContext";
 import { chatService } from "../../services/chatService";
 import { userService } from "../../services/userService";
-import { getAvatarForUser, formatDateSeparator, isSameDay, downloadResource, formatLastSeen } from "../../utils/helpers";
+import {
+  getAvatarForUser,
+  formatDateSeparator,
+  getMessageStatusLabel,
+  isSameDay,
+  downloadResource,
+  formatLastSeen
+} from "../../utils/helpers";
 import ShareModal from "../common/ShareModal";
 import MessageBubble from "./MessageBubble";
 import PostModal from "../post/PostModal";
@@ -65,6 +72,7 @@ export default function ChatBox() {
     position: { top: 0, left: 0 } 
   });
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
+  const [, setRelativeTimeTick] = useState(0);
   
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -77,6 +85,14 @@ export default function ChatBox() {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const requestedUserId = queryParams.get("userId");
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setRelativeTimeTick((tick) => tick + 1);
+    }, 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     async function loadConversations() {
@@ -231,12 +247,33 @@ export default function ChatBox() {
       );
     }
 
-    function handleSeen({ byUserId, roomId }) {
+    function handleSeen({ byUserId, roomId, seenAt }) {
+      const nextSeenAt = seenAt || new Date().toISOString();
+
       if (byUserId === activeConversationId) {
         setMessages((prev) =>
-          prev.map((m) => (m.receiver.id === byUserId ? { ...m, seenAt: new Date() } : m))
+          prev.map((m) => (m.receiver.id === byUserId ? { ...m, seenAt: nextSeenAt } : m))
         );
       }
+
+      setConversations((prev) =>
+        prev.map((conversation) => {
+          const lastMessage = conversation.lastMessage;
+          const lastMessageReceiverId = lastMessage?.receiver?.id || lastMessage?.receiver?._id;
+
+          if (lastMessage?.roomId === roomId && String(lastMessageReceiverId) === String(byUserId)) {
+            return {
+              ...conversation,
+              lastMessage: {
+                ...lastMessage,
+                seenAt: nextSeenAt
+              }
+            };
+          }
+
+          return conversation;
+        })
+      );
     }
 
     function handleMessageDeleted({ messageId }) {
@@ -792,7 +829,9 @@ export default function ChatBox() {
                       {c.lastMessage.attachments?.length > 0 ? "Sent an attachment" : (c.lastMessage.body || "Say hi!")}
                     </span>
                     <span className="preview-dot">•</span>
-                    <span className="preview-time">{new Date(c.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="preview-time">
+                      {getMessageStatusLabel(c.lastMessage, c.lastMessage?.sender?.id === user.id)}
+                    </span>
                   </div>
                 </div>
 
@@ -885,9 +924,10 @@ export default function ChatBox() {
                         id: message.id || message._id,
                         text: message.body,
                         createdAt: message.createdAt,
-                        time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        time: getMessageStatusLabel(message, message.sender.id === user.id),
                         avatar: getAvatarForUser(message.sender),
                         seen: !!message.seenAt,
+                        seenAt: message.seenAt,
                         attachments: message.attachments,
                         senderId: message.sender.id || message.sender._id,
                         senderUsername: message.sender.username,
