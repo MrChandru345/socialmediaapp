@@ -11,6 +11,7 @@ import StoryViewerModal from "../components/story/StoryViewerModal";
 import { useAuth } from "../hooks/useAuth";
 import { followService } from "../services/followService";
 import { postService } from "../services/postService";
+import { reelService } from "../services/reelService";
 import { storyService } from "../services/storyService";
 import { userService } from "../services/userService";
 import {
@@ -32,6 +33,15 @@ const initialState = {
   stories: [],
   suggestions: []
 };
+
+function sortFeedItemsByDate(items) {
+  return [...items].sort((firstItem, secondItem) => {
+    const firstTime = new Date(firstItem.createdAt || 0).getTime();
+    const secondTime = new Date(secondItem.createdAt || 0).getTime();
+
+    return secondTime - firstTime;
+  });
+}
 
 export default function Home() {
   const { user } = useAuth();
@@ -62,16 +72,21 @@ export default function Home() {
     }));
 
     try {
-      const [feed, stories, suggestions] = await Promise.all([
+      const [feed, reels, stories, suggestions] = await Promise.all([
         postService.getFeed({ limit: 10 }),
+        reelService.getAll({ limit: 10 }),
         storyService.getFeed(),
         userService.getSuggestions()
+      ]);
+      const feedItems = sortFeedItemsByDate([
+        ...(feed.items || []),
+        ...(reels.items || []).map((reel) => ({ ...reel, isReel: true }))
       ]);
 
       setState({
         error: "",
         feedMeta: feed.meta || null,
-        posts: (feed.items || []).map(createOptimisticPost),
+        posts: feedItems.map(createOptimisticPost),
         status: "ready",
         stories: stories || [],
         suggestions: suggestions || []

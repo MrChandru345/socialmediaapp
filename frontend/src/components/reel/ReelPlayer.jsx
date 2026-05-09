@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, MessageSquare, Send, Bookmark, MoreHorizontal } from "lucide-react";
 import { getAvatarForUser, formatCompactNumber } from "../../utils/helpers";
+import { followService } from "../../services/followService";
 import { reelService } from "../../services/reelService";
 import { useAuth } from "../../hooks/useAuth";
 import ReelCommentModal from "./ReelCommentModal";
@@ -24,7 +25,16 @@ export default function ReelPlayer({ reel, onPostClick }) {
   const [showMore, setShowMore] = useState(false);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isFollowingAuthor, setIsFollowingAuthor] = useState(Boolean(reel.author?.isFollowing));
+  const [isFollowPending, setIsFollowPending] = useState(false);
   const clickTimeoutRef = useRef(null);
+  const authorId = reel.author?.id || reel.author?._id;
+  const isOwnReel = authorId && user?.id && String(authorId) === String(user.id);
+
+  useEffect(() => {
+    setIsFollowingAuthor(Boolean(reel.author?.isFollowing));
+    setIsFollowPending(false);
+  }, [reel.id, reel.author?.isFollowing]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -119,6 +129,27 @@ export default function ReelPlayer({ reel, onPostClick }) {
     }
   }
 
+  async function handleFollowAuthor(e) {
+    e.stopPropagation();
+
+    if (!authorId || isOwnReel || isFollowPending) {
+      return;
+    }
+
+    const nextFollowingState = !isFollowingAuthor;
+    setIsFollowPending(true);
+    setIsFollowingAuthor(nextFollowingState);
+
+    try {
+      const result = await followService.toggle(authorId);
+      setIsFollowingAuthor(Boolean(result.following));
+    } catch (err) {
+      setIsFollowingAuthor(!nextFollowingState);
+    } finally {
+      setIsFollowPending(false);
+    }
+  }
+
   const CAPTION_LIMIT = 80;
   const hasLongCaption = reel.caption && reel.caption.length > CAPTION_LIMIT;
 
@@ -131,7 +162,7 @@ export default function ReelPlayer({ reel, onPostClick }) {
             {/* Author row */}
             <div className="reel-left__author">
               <img
-                src={reel.author?.avatar?.url || reel.author?.avatar || getAvatarForUser(reel.author, "User")}
+                src={getAvatarForUser(reel.author, "User")}
                 alt="Avatar"
                 onClick={() => navigate(`/profile/${reel.author?.username}`)}
                 style={{ cursor: 'pointer' }}
@@ -143,10 +174,16 @@ export default function ReelPlayer({ reel, onPostClick }) {
                 >
                   {reel.author?.username || "creator"}
                 </span>
-                <span className="reel-left__dot">•</span>
-                <button className="reel-left__follow-btn" onClick={(e) => e.stopPropagation()}>
-                  Follow
-                </button>
+                {!isOwnReel && (
+                  <button
+                    className={`reel-left__follow-btn ${isFollowingAuthor ? "is-following" : ""}`}
+                    disabled={isFollowPending}
+                    onClick={handleFollowAuthor}
+                    type="button"
+                  >
+                    {isFollowPending ? "..." : isFollowingAuthor ? "Unfollow" : "Follow"}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -231,7 +268,7 @@ export default function ReelPlayer({ reel, onPostClick }) {
               <MoreHorizontal size={28} color="white" />
             </div>
           </button>
-          <img className="reel-music-disc" src={reel.author?.avatar?.url || reel.author?.avatar || getAvatarForUser(reel.author, "User")} alt="Audio" />
+          <img className="reel-music-disc" src={getAvatarForUser(reel.author, "User")} alt="Audio" />
         </div>
       </div>
 

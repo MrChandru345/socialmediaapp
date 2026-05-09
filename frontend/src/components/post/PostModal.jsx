@@ -363,7 +363,8 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
           onClose={() => setIsShareOpen(false)} 
           payload={{ 
             body: isReel(currentPost) ? "Shared a reel" : "Shared a post", 
-            sharedPost: currentPost.id,
+            sharedPost: isReel(currentPost) ? undefined : currentPost._id || currentPost.id,
+            sharedReel: isReel(currentPost) ? currentPost._id || currentPost.id : undefined,
             media: getPostMedia(currentPost)
           }} 
         />

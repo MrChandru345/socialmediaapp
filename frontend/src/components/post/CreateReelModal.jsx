@@ -9,6 +9,8 @@ const initialState = {
   video: null
 };
 
+const REEL_CAPTION_MAX_LENGTH = 500;
+
 export default function CreateReelModal({ onClose, onCreated, open }) {
   const [form, setForm] = useState(initialState);
   const [error, setError] = useState("");
@@ -46,6 +48,11 @@ export default function CreateReelModal({ onClose, onCreated, open }) {
 
     if (!form.video) {
       setError("Please select a video for your reel.");
+      return;
+    }
+
+    if (form.caption.trim().length > REEL_CAPTION_MAX_LENGTH) {
+      setError(`Caption must be ${REEL_CAPTION_MAX_LENGTH} characters or fewer.`);
       return;
     }
 
@@ -110,6 +117,7 @@ export default function CreateReelModal({ onClose, onCreated, open }) {
               <textarea
                 className="instagram-caption-input"
                 onChange={(event) => setForm((current) => ({ ...current, caption: event.target.value }))}
+                maxLength={REEL_CAPTION_MAX_LENGTH}
                 placeholder="Write a caption for your reel..."
                 rows="6"
                 value={form.caption}

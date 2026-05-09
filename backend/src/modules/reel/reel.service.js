@@ -1,4 +1,4 @@
-const { isCloudinaryConfigured, uploadBuffer } = require("../../config/cloudinary");
+const { cloudinary, isCloudinaryConfigured, uploadBuffer } = require("../../config/cloudinary");
 const {
   AppError,
   buildPaginationMeta,
@@ -6,10 +6,12 @@ const {
   parsePagination,
   sanitizeUser
 } = require("../../utils/helpers");
+const logger = require("../../utils/logger");
 const { createNotification } = require("../notification/notification.service");
+const { REEL_CAPTION_MAX_LENGTH } = require("./reel.constants");
 const Reel = require("./reel.model");
 
-function formatAuthor(author) {
+function formatAuthor(author, viewerId) {
   const user = sanitizeUser(author);
 
   if (!user) {
@@ -22,7 +24,11 @@ function formatAuthor(author) {
     username: user.username,
     fullName: user.fullName,
     avatar: user.avatar,
-    role: user.role
+    role: user.role,
+    followersCount: user.followers?.length || 0,
+    isFollowing: viewerId
+      ? user.followers?.some((entry) => String(entry) === String(viewerId))
+      : false
   };
 }
 
@@ -34,7 +40,7 @@ function formatReel(reel, viewerId) {
   return {
     ...reel,
     id: String(reel._id),
-    author: formatAuthor(reel.author),
+    author: formatAuthor(reel.author, viewerId),
     likesCount: reel.likes?.length || 0,
     likedByViewer: viewerId
       ? reel.likes?.some((entry) => String(entry) === String(viewerId))
@@ -64,14 +70,49 @@ async function uploadReelVideo(file) {
     resource_type: "video"
   });
 
+  const url = result.secure_url || result.url;
+
+  if (!url) {
+    throw new AppError(502, "Cloudinary did not return a video URL");
+  }
+
   return {
-    url: result.secure_url,
+    url,
     publicId: result.public_id,
     type: "video"
   };
 }
 
-async function createReel(userId, payload, file) {
+async function deleteUploadedReelVideo(video) {
+  if (!video?.publicId || !isCloudinaryConfigured) {
+    return;
+  }
+
+  try {
+    await cloudinary.uploader.destroy(video.publicId, { resource_type: "video" });
+  } catch (error) {
+    logger.warn("Failed to clean up reel video after create failure", {
+      publicId: video.publicId,
+      error: error.message
+    });
+  }
+}
+
+function normalizeCaption(caption) {
+  const normalizedCaption = caption?.trim() || "";
+
+  if (normalizedCaption.length > REEL_CAPTION_MAX_LENGTH) {
+    throw new AppError(
+      400,
+      `Caption must be ${REEL_CAPTION_MAX_LENGTH} characters or fewer`
+    );
+  }
+
+  return normalizedCaption;
+}
+
+async function createReel(userId, payload = {}, file) {
+  const caption = normalizeCaption(payload.caption);
   const uploadedVideo = await uploadReelVideo(file);
   const payloadVideo = normalizeMediaInput(payload.video || payload.media, "video")[0] || null;
   const video = uploadedVideo || payloadVideo;
@@ -80,14 +121,21 @@ async function createReel(userId, payload, file) {
     throw new AppError(400, "A reel requires a video source");
   }
 
-  const reel = await Reel.create({
-    author: userId,
-    caption: payload.caption?.trim() || "",
-    video
-  });
+  let reel;
+
+  try {
+    reel = await Reel.create({
+      author: userId,
+      caption,
+      video
+    });
+  } catch (error) {
+    await deleteUploadedReelVideo(uploadedVideo);
+    throw error;
+  }
 
   const populatedReel = await Reel.findById(reel._id)
-    .populate("author", "username fullName avatar role")
+    .populate("author", "username fullName avatar role followers")
     .lean();
 
   return formatReel(populatedReel, userId);
@@ -106,7 +154,7 @@ async function getReels(query, viewerId) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("author", "username fullName avatar role")
+      .populate("author", "username fullName avatar role followers")
       .lean(),
     Reel.countDocuments(filter)
   ]);

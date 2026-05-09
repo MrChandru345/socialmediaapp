@@ -41,6 +41,7 @@ export default function PostCard({ onRemove, post }) {
   }, [post]);
 
   const media = getPostMedia(currentPost);
+  const isPostReel = isReel(currentPost);
   const isOwnPost = isOwnResource(getAuthorId(currentPost.author), user?.id);
 
   async function handleLike() {
@@ -48,7 +49,6 @@ export default function PostCard({ onRemove, post }) {
     setError("");
 
     try {
-      const isPostReel = isReel(currentPost);
       const result = isPostReel 
         ? await reelService.toggleLike(currentPost.id)
         : await postService.toggleLike(currentPost.id);
@@ -70,7 +70,10 @@ export default function PostCard({ onRemove, post }) {
     setError("");
 
     try {
-      const result = await postService.toggleSave(currentPost.id);
+      const result = isPostReel
+        ? await reelService.toggleSave(currentPost.id)
+        : await postService.toggleSave(currentPost.id);
+
       setCurrentPost((existingPost) => ({
         ...existingPost,
         savedByViewer: result.saved,
@@ -89,7 +92,6 @@ export default function PostCard({ onRemove, post }) {
     setError("");
 
     try {
-      const isPostReel = isReel(currentPost);
       if (isPostReel) {
         await reelService.remove(currentPost.id);
       } else {
@@ -129,7 +131,12 @@ export default function PostCard({ onRemove, post }) {
       </header>
 
       {media && isVideoMedia(media) ? (
-        <video className="post-card__cover" controls preload="metadata" src={media.url} />
+        <video
+          className={isPostReel ? "post-card__cover post-card__cover--reel" : "post-card__cover"}
+          controls
+          preload="metadata"
+          src={media.url}
+        />
       ) : null}
 
       {media && !isVideoMedia(media) ? (
@@ -208,8 +215,9 @@ export default function PostCard({ onRemove, post }) {
           isOpen={isShareOpen} 
           onClose={() => setIsShareOpen(false)} 
           payload={{ 
-            body: "Shared a post", 
-            sharedPost: currentPost._id || currentPost.id,
+            body: isReel(currentPost) ? "Shared a reel" : "Shared a post",
+            sharedPost: isReel(currentPost) ? undefined : currentPost._id || currentPost.id,
+            sharedReel: isReel(currentPost) ? currentPost._id || currentPost.id : undefined,
             media: getPostMedia(currentPost)
           }} 
         />
