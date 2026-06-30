@@ -27,38 +27,34 @@ export default function ProfileHeader({
 
   return (
     <section className="profile-hero-premium modern-glass radius-xl">
-      <div className="profile-hero-banner">
-        <div className="profile-hero-banner-overlay"></div>
-        {!isOwnProfile && (
-          <button 
-            onClick={() => navigate(-1)} 
-            className="icon-button back-icon-glass" 
-            title="Go Back"
-            style={{ 
-              position: 'absolute', 
-              top: '1rem', 
-              left: '1rem', 
-              zIndex: 10,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              background: 'rgba(0, 0, 0, 0.4)',
-              color: 'white',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(8px)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>arrow_back</span>
-          </button>
-        )}
-      </div>
+      {!isOwnProfile && (
+        <button 
+          onClick={() => navigate(-1)} 
+          className="icon-button back-icon-glass" 
+          title="Go Back"
+          style={{ 
+            position: 'absolute', 
+            top: '1.25rem', 
+            left: '1.25rem', 
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            background: 'var(--surface-low)',
+            color: 'var(--text)',
+            border: '1px solid var(--surface-outline)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>arrow_back</span>
+        </button>
+      )}
       
-      <div className="profile-hero-content">
+      <div className="profile-hero-content" style={!isOwnProfile ? { paddingTop: '4.5rem' } : { paddingTop: '2.5rem' }}>
         <div className="profile-hero-top">
           <div className="profile-avatar-wrap">
             <img

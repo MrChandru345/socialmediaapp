@@ -11,8 +11,10 @@ export default function Reels() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    document.body.classList.add("no-global-scroll");
-    return () => document.body.classList.remove("no-global-scroll");
+    document.body.classList.add("no-global-scroll", "reels-page-active");
+    return () => {
+      document.body.classList.remove("no-global-scroll", "reels-page-active");
+    };
   }, []);
 
   function handlePostClick(post) {

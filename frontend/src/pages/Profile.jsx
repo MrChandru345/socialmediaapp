@@ -13,6 +13,7 @@ import Loader from "../components/common/Loader";
 import CreationChoiceModal from "../components/profile/CreationChoiceModal";
 import CreateReelModal from "../components/post/CreateReelModal";
 import CreatePostModal from "../components/post/CreatePostModal";
+import CreateStoryModal from "../components/story/CreateStoryModal";
 import { useAuth } from "../hooks/useAuth";
 import { followService } from "../services/followService";
 import { userService } from "../services/userService";
@@ -43,6 +44,7 @@ export default function Profile() {
   const [isChoiceOpen, setIsChoiceOpen] = useState(false);
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isCreateReelOpen, setIsCreateReelOpen] = useState(false);
+  const [isCreateStoryOpen, setIsCreateStoryOpen] = useState(false);
 
   const profileIdentifier = identifier || user?.username || user?.id;
   const isOwnProfile = Boolean(state.profile?.id && user?.id && state.profile.id === user.id);
@@ -317,6 +319,7 @@ export default function Profile() {
         onClose={() => setIsChoiceOpen(false)}
         onChoosePost={() => setIsCreatePostOpen(true)}
         onChooseReel={() => setIsCreateReelOpen(true)}
+        onChooseStory={() => setIsCreateStoryOpen(true)}
       />
 
       <CreatePostModal
@@ -329,6 +332,12 @@ export default function Profile() {
         open={isCreateReelOpen}
         onClose={() => setIsCreateReelOpen(false)}
         onCreated={handleReelCreated}
+      />
+
+      <CreateStoryModal
+        open={isCreateStoryOpen}
+        onClose={() => setIsCreateStoryOpen(false)}
+        onCreated={() => setIsCreateStoryOpen(false)}
       />
     </>
   );

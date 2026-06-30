@@ -39,10 +39,13 @@ export default function PostCard({ onRemove, post }) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isFollowPending, setIsFollowPending] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
 
   useEffect(() => {
     setCurrentPost(createOptimisticPost(post));
     setError("");
+    setIsCaptionExpanded(false);
   }, [post]);
 
   const media = getPostMedia(currentPost);
@@ -187,15 +190,14 @@ export default function PostCard({ onRemove, post }) {
               {isFollowPending ? "..." : currentPost.author?.isFollowing ? "Following" : "Follow"}
             </button>
           ) : null}
-          {isOwnPost ? (
-            <button className="post-card__more-btn" disabled={isDeleting} onClick={() => setIsConfirmOpen(true)} type="button">
-              {isDeleting ? <Loader2 className="animate-spin" size={20} /> : <MoreHorizontal size={20} />}
-            </button>
-          ) : (
-            <span className="post-card__more-btn post-card__more-btn--static">
-              <MoreHorizontal size={20} />
-            </span>
-          )}
+          <button 
+            className="post-card__more-btn" 
+            disabled={isDeleting} 
+            onClick={() => setShowMoreMenu(true)} 
+            type="button"
+          >
+            {isDeleting ? <Loader2 className="animate-spin" size={20} /> : <MoreHorizontal size={20} />}
+          </button>
         </div>
       </header>
 
@@ -203,6 +205,7 @@ export default function PostCard({ onRemove, post }) {
         <video
           className={isPostReel ? "post-card__cover post-card__cover--reel" : "post-card__cover"}
           controls
+          controlsList="nodownload"
           preload="metadata"
           src={media.url}
           onClick={() => setIsModalOpen(true)}
@@ -263,8 +266,16 @@ export default function PostCard({ onRemove, post }) {
 
         <p className="post-card__caption">
           <strong>{authorUsername}</strong>
-          {" "}{captionPreview}
-          {caption.length > captionPreview.length ? <span className="post-card__more-caption">more</span> : null}
+          {" "}{isCaptionExpanded ? caption : captionPreview}
+          {!isCaptionExpanded && caption.length > captionPreview.length ? (
+            <span 
+              className="post-card__more-caption" 
+              onClick={() => setIsCaptionExpanded(true)}
+              style={{ cursor: "pointer", marginLeft: "4px" }}
+            >
+              more
+            </span>
+          ) : null}
         </p>
 
         {error ? <p className="form-error post-card__error">{error}</p> : null}
@@ -306,6 +317,46 @@ export default function PostCard({ onRemove, post }) {
         title="Delete Post?"
         message="Are you sure you want to delete this permanently? This action cannot be undone."
       />
+
+      {showMoreMenu && (
+        <div className="reel-modal-overlay" onClick={() => setShowMoreMenu(false)} style={{ alignItems: "center", justifyContent: "center" }}>
+          <div className="reel-mini-modal" onClick={(e) => e.stopPropagation()}>
+            {isOwnPost ? (
+              <button 
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  setIsConfirmOpen(true);
+                }} 
+                style={{ color: "var(--danger)", fontWeight: "600" }}
+              >
+                Delete Post
+              </button>
+            ) : (
+              <>
+                <button 
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    alert("Thank you for your report. We will review this post.");
+                  }} 
+                  style={{ color: "var(--danger)", fontWeight: "600" }}
+                >
+                  Report Post
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    navigator.clipboard.writeText(`${window.location.origin}/post/${currentPost.id}`);
+                    alert("Link copied to clipboard!");
+                  }}
+                >
+                  Copy Link
+                </button>
+              </>
+            )}
+            <button onClick={() => setShowMoreMenu(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
     </article>
   );
 }

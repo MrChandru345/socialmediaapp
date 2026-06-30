@@ -18,11 +18,22 @@ const protect = asyncHandler(async (req, res, next) => {
     throw new AppError(401, "Authentication token is required");
   }
 
-  const decodedToken = verifyToken(token);
+  let decodedToken;
+
+  try {
+    decodedToken = verifyToken(token);
+  } catch (error) {
+    throw new AppError(401, error.name === "TokenExpiredError" ? "Access token expired" : "Invalid access token");
+  }
+
   const user = await User.findById(decodedToken.sub).select("-password");
 
   if (!user) {
     throw new AppError(401, "The authenticated user no longer exists");
+  }
+
+  if (user.status === "suspended") {
+    throw new AppError(403, "Account suspended");
   }
 
   req.user = user;

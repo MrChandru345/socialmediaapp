@@ -1,11 +1,29 @@
-﻿const { asyncHandler } = require("../../middleware/error.middleware");
-const { getCurrentUser, loginUser, registerUser } = require("./auth.service");
-const { validateLoginPayload, validateRegisterPayload } = require("./auth.validation");
+const { asyncHandler } = require("../../middleware/error.middleware");
+const {
+  getAvailability,
+  getCurrentUser,
+  loginUser,
+  logoutAllSessions,
+  logoutSession,
+  refreshSession,
+  registerUser,
+  requestPasswordReset,
+  resendVerification,
+  resetPassword,
+  verifyEmail
+} = require("./auth.service");
+const {
+  validateAvailabilityQuery,
+  validateForgotPasswordPayload,
+  validateLoginPayload,
+  validateRegisterPayload,
+  validateResetPasswordPayload
+} = require("./auth.validation");
 
 const register = asyncHandler(async (req, res) => {
-  validateRegisterPayload(req.body);
+  const payload = validateRegisterPayload(req.body);
+  const response = await registerUser(payload, req, req.file);
 
-  const response = await registerUser(req.body);
   res.status(201).json({
     success: true,
     message: "User registered successfully",
@@ -14,12 +32,42 @@ const register = asyncHandler(async (req, res) => {
 });
 
 const login = asyncHandler(async (req, res) => {
-  validateLoginPayload(req.body);
+  const payload = validateLoginPayload(req.body);
+  const response = await loginUser(payload, req);
 
-  const response = await loginUser(req.body);
   res.json({
     success: true,
     message: "Login successful",
+    data: response
+  });
+});
+
+const refresh = asyncHandler(async (req, res) => {
+  const response = await refreshSession(req.body?.refreshToken, req);
+
+  res.json({
+    success: true,
+    message: "Session refreshed",
+    data: response
+  });
+});
+
+const logout = asyncHandler(async (req, res) => {
+  const response = await logoutSession(req.body?.refreshToken);
+
+  res.json({
+    success: true,
+    message: "Logged out",
+    data: response
+  });
+});
+
+const logoutAll = asyncHandler(async (req, res) => {
+  const response = await logoutAllSessions(req.user._id);
+
+  res.json({
+    success: true,
+    message: "All sessions logged out",
     data: response
   });
 });
@@ -33,8 +81,64 @@ const me = asyncHandler(async (req, res) => {
   });
 });
 
+const availability = asyncHandler(async (req, res) => {
+  const query = validateAvailabilityQuery(req.query);
+  const response = await getAvailability(query);
+
+  res.json({
+    success: true,
+    data: response
+  });
+});
+
+const forgotPassword = asyncHandler(async (req, res) => {
+  const payload = validateForgotPasswordPayload(req.body);
+  const response = await requestPasswordReset(payload.email);
+
+  res.json({
+    success: true,
+    data: response
+  });
+});
+
+const resetPasswordHandler = asyncHandler(async (req, res) => {
+  validateResetPasswordPayload(req.body);
+  const response = await resetPassword(req.body);
+
+  res.json({
+    success: true,
+    data: response
+  });
+});
+
+const resendEmailVerification = asyncHandler(async (req, res) => {
+  const response = await resendVerification(req.user._id);
+
+  res.json({
+    success: true,
+    data: response
+  });
+});
+
+const verifyEmailHandler = asyncHandler(async (req, res) => {
+  const response = await verifyEmail(req.body);
+
+  res.json({
+    success: true,
+    data: response
+  });
+});
+
 module.exports = {
+  availability,
+  forgotPassword,
   login,
+  logout,
+  logoutAll,
   me,
-  register
+  refresh,
+  register,
+  resendEmailVerification,
+  resetPassword: resetPasswordHandler,
+  verifyEmail: verifyEmailHandler
 };
