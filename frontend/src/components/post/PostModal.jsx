@@ -79,14 +79,32 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
 
   useEffect(() => {
     if (post && open) {
-      setCurrentPost(createOptimisticPost(post));
-      loadComments(post.id);
+      if (!post.author && post.id) {
+        fetchFullPost(post.id, post.isReel || isReel(post));
+      } else {
+        setCurrentPost(createOptimisticPost(post));
+        loadComments(post.id);
+      }
     } else {
       setCurrentPost(null);
       setComments([]);
       setDraft("");
     }
   }, [post, open]);
+
+  async function fetchFullPost(id, isReelType) {
+    setIsLoadingComments(true);
+    try {
+      const data = isReelType ? await reelService.getById(id) : await postService.getById(id);
+      setCurrentPost(createOptimisticPost(data));
+      loadComments(id);
+    } catch (e) {
+      console.error(e);
+      onClose();
+    } finally {
+      setIsLoadingComments(false);
+    }
+  }
 
   async function loadComments(postId) {
     setIsLoadingComments(true);
@@ -188,9 +206,9 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
     }
   }
 
-  if (!open || !currentPost) return null;
+  if (!open) return null;
 
-  const media = getPostMedia(currentPost);
+  const media = currentPost ? getPostMedia(currentPost) : null;
 
   return (
     /* Backdrop */
@@ -207,21 +225,27 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
 
       {/* Modal card */}
       <div
-        className="instagram-post-modal"
+        className={`instagram-post-modal ${!currentPost ? 'is-loading' : ''}`}
         onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
       >
-        {/* LEFT: Media */}
-        <div className="post-modal-media">
-          {media && isVideoMedia(media) ? (
-            <video className="post-modal-content" controls autoPlay loop muted src={media.url} />
-          ) : media ? (
-            <img className="post-modal-content" src={media.url} alt="Post" />
-          ) : (
-            <div className="post-modal-content empty-media">No Media</div>
-          )}
-        </div>
+        {!currentPost ? (
+          <div className="post-modal-loader-container">
+            <Loader label="Loading content..." />
+          </div>
+        ) : (
+          <>
+            {/* LEFT: Media */}
+            <div className="post-modal-media">
+              {media && isVideoMedia(media) ? (
+                <video className="post-modal-content" controls autoPlay loop muted src={media.url} />
+              ) : media ? (
+                <img className="post-modal-content" src={media.url} alt="Post" />
+              ) : (
+                <div className="post-modal-content empty-media">No Media</div>
+              )}
+            </div>
 
         {/* RIGHT: Sidebar */}
         <div className="post-modal-sidebar">
@@ -354,8 +378,10 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
               {isSubmitting ? "..." : "Post"}
             </button>
           </form>
-        </div>
-      </div>
+        </div> {/* This closes post-modal-sidebar */}
+      </>
+    )}
+  </div>
 
       {isShareOpen && (
         <ShareModal 

@@ -24,6 +24,10 @@ export const reelService = {
   async toggleSave(reelId) {
     const response = await api.post(`/reels/${reelId}/save`);
     return response.data.data;
+  },
+  async getById(reelId) {
+    const response = await api.get(`/reels/${reelId}`);
+    return response.data.data;
   }
 };
 

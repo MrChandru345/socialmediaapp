@@ -30,7 +30,7 @@ async function uploadMediaFiles(files, folder) {
   );
 }
 
-function formatAuthor(author) {
+function formatAuthor(author, viewerId) {
   const user = sanitizeUser(author);
 
   if (!user) {
@@ -44,7 +44,11 @@ function formatAuthor(author) {
     fullName: user.fullName,
     avatar: user.avatar,
     location: user.location,
-    role: user.role
+    role: user.role,
+    followersCount: user.followers?.length || 0,
+    isFollowing: viewerId
+      ? user.followers?.some((entry) => String(entry) === String(viewerId))
+      : false
   };
 }
 
@@ -52,7 +56,7 @@ function formatPost(post, viewerId) {
   return {
     ...post,
     id: String(post._id),
-    author: formatAuthor(post.author),
+    author: formatAuthor(post.author, viewerId),
     commentsCount: post.commentsCount || 0,
     likesCount: post.likes?.length || 0,
     savesCount: post.saves?.length || 0,
@@ -82,7 +86,7 @@ async function createPost(userId, payload, files) {
   });
 
   const populatedPost = await Post.findById(post._id)
-    .populate("author", "username fullName avatar location role")
+    .populate("author", "username fullName avatar location role followers")
     .lean();
 
   return formatPost(populatedPost, userId);
@@ -109,7 +113,7 @@ async function getFeed(userId, query) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("author", "username fullName avatar location role")
+      .populate("author", "username fullName avatar location role followers")
       .lean(),
     Post.countDocuments(filter)
   ]);
@@ -129,7 +133,7 @@ async function getExplorePosts(query, viewerId) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("author", "username fullName avatar location role")
+      .populate("author", "username fullName avatar location role followers")
       .lean(),
     Post.countDocuments(filter)
   ]);
@@ -142,7 +146,7 @@ async function getExplorePosts(query, viewerId) {
 
 async function getPostById(postId, viewerId) {
   const post = await Post.findById(postId)
-    .populate("author", "username fullName avatar location role")
+    .populate("author", "username fullName avatar location role followers")
     .lean();
 
   if (!post) {
