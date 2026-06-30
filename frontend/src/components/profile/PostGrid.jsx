@@ -30,23 +30,7 @@ export default function PostGrid({ posts = [], isOwnProfile, onCreatePost, activ
       );
     }
     
-    if (activeTab === 'tagged') {
-        return (
-          <section className="sidebar-card empty-state modern-glass radius-xl">
-            <div className="empty-state-icon" style={{ 
-              width: '80px', height: '80px', borderRadius: '50%', 
-              border: '2px solid var(--text)', display: 'flex', 
-              alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' 
-            }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '2.5rem' }}>assignment_ind</span>
-            </div>
-            <h3 style={{ fontSize: '1.5rem', margin: '0 0 0.5rem 0' }}>Photos of you</h3>
-            <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-muted)' }}>
-              When people tag you in photos, they'll appear here.
-            </p>
-          </section>
-        );
-    }
+
 
     return (
       <section className="sidebar-card empty-state modern-glass radius-xl">

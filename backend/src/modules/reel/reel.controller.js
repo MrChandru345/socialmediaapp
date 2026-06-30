@@ -48,9 +48,20 @@ const saveReel = asyncHandler(async (req, res) => {
   });
 });
 
+const getSingleReel = asyncHandler(async (req, res) => {
+  const { getReelById } = require("./reel.service");
+  const reel = await getReelById(req.params.reelId, req.user?._id);
+
+  res.json({
+    success: true,
+    data: reel
+  });
+});
+
 module.exports = {
   createNewReel,
   getAllReels,
+  getSingleReel,
   likeReel,
   saveReel,
   removeReel

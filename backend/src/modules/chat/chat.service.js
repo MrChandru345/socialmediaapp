@@ -325,6 +325,7 @@ async function sendMessage(userId, receiverId, payload, files) {
 
 async function markConversationSeen(userId, withUserId) {
   const roomId = buildRoomId(userId, withUserId);
+  const seenAt = new Date();
 
   const result = await Message.updateMany(
     {
@@ -333,19 +334,21 @@ async function markConversationSeen(userId, withUserId) {
       seenAt: null
     },
     {
-      $set: { seenAt: new Date() }
+      $set: { seenAt }
     }
   );
 
   emitUserEvent(withUserId, "chat:seen", {
     byUserId: String(userId),
-    roomId
+    roomId,
+    seenAt
   });
 
   // Also emit to the current user to sync all their open tabs
   emitUserEvent(userId, "chat:seen", {
     byUserId: String(userId),
-    roomId
+    roomId,
+    seenAt
   });
 
   return {
@@ -482,7 +485,7 @@ async function getConversationMedia(userId, withUserId) {
   })
   .populate({
     path: "sharedPost",
-    select: "media"
+    select: "_id media"
   })
   .populate({
     path: "sharedReel",
@@ -503,11 +506,23 @@ async function getConversationMedia(userId, withUserId) {
     if (m.sharedPost && m.sharedPost.media) {
        const postMedia = Array.isArray(m.sharedPost.media) ? m.sharedPost.media : [m.sharedPost.media];
        postMedia.forEach(a => {
-         media.push({ ...a, createdAt: m.createdAt, messageId: m._id, isSharedPost: true });
+         media.push({ 
+           ...a, 
+           createdAt: m.createdAt, 
+           messageId: m._id, 
+           isSharedPost: true,
+           postId: m.sharedPost._id
+         });
        });
     }
     if (m.sharedReel && m.sharedReel.video) {
-       media.push({ ...m.sharedReel.video, createdAt: m.createdAt, messageId: m._id, isSharedPost: true });
+       media.push({ 
+         ...m.sharedReel.video, 
+         createdAt: m.createdAt, 
+         messageId: m._id, 
+         isSharedPost: true,
+         reelId: m.sharedReel._id
+       });
     }
   });
 

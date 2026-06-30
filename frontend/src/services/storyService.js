@@ -32,7 +32,8 @@ export const storyService = {
             type: payload.mediaType || "image",
             url: payload.mediaUrl
           }
-        : null
+        : null,
+      sharedPost: payload.sharedPost || null
     });
 
     return response.data.data;

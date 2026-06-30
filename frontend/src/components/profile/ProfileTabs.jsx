@@ -2,8 +2,7 @@ export default function ProfileTabs({ activeTab, onTabChange, isOwnProfile }) {
   const tabs = [
     { id: 'posts', label: 'Posts', icon: 'grid_on' },
     { id: 'reels', label: 'Reels', icon: 'movie' },
-    ...(isOwnProfile ? [{ id: 'saved', label: 'Saved', icon: 'bookmark_border' }] : []),
-    { id: 'tagged', label: 'Tagged', icon: 'assignment_ind' }
+    ...(isOwnProfile ? [{ id: 'saved', label: 'Saved', icon: 'bookmark_border' }] : [])
   ];
 
   return (

@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { MessageSquare, Send, Bookmark, MoreHorizontal, Loader2, Image } from "lucide-react";
 import ShareModal from "../common/ShareModal";
 import ConfirmModal from "../common/ConfirmModal";
+import PostModal from "./PostModal";
 
 import { useAuth } from "../../hooks/useAuth";
+import { followService } from "../../services/followService";
 import { postService } from "../../services/postService";
 import { reelService } from "../../services/reelService";
 import {
@@ -34,6 +37,8 @@ export default function PostCard({ onRemove, post }) {
   const [isSavePending, setIsSavePending] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isFollowPending, setIsFollowPending] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     setCurrentPost(createOptimisticPost(post));
@@ -43,6 +48,10 @@ export default function PostCard({ onRemove, post }) {
   const media = getPostMedia(currentPost);
   const isPostReel = isReel(currentPost);
   const isOwnPost = isOwnResource(getAuthorId(currentPost.author), user?.id);
+  const authorId = getAuthorId(currentPost.author);
+  const authorUsername = currentPost.author?.username || getPostAuthorName(currentPost);
+  const caption = getPostCaption(currentPost);
+  const captionPreview = caption.length > 165 ? `${caption.slice(0, 165).trimEnd()}...` : caption;
 
   async function handleLike() {
     setIsLikePending(true);
@@ -105,6 +114,48 @@ export default function PostCard({ onRemove, post }) {
     }
   }
 
+  async function handleFollowAuthor(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!authorId || isOwnPost || isFollowPending) {
+      return;
+    }
+
+    const nextFollowingState = !currentPost.author?.isFollowing;
+    setIsFollowPending(true);
+    setCurrentPost((existingPost) => ({
+      ...existingPost,
+      author: {
+        ...existingPost.author,
+        isFollowing: nextFollowingState
+      }
+    }));
+
+    try {
+      const result = await followService.toggle(authorId);
+      setCurrentPost((existingPost) => ({
+        ...existingPost,
+        author: {
+          ...existingPost.author,
+          followersCount: result.followersCount,
+          isFollowing: result.following
+        }
+      }));
+    } catch (caughtError) {
+      setCurrentPost((existingPost) => ({
+        ...existingPost,
+        author: {
+          ...existingPost.author,
+          isFollowing: !nextFollowingState
+        }
+      }));
+      setError(getApiErrorMessage(caughtError, "Unable to update follow status right now."));
+    } finally {
+      setIsFollowPending(false);
+    }
+  }
+
   return (
     <article className="post-card">
       <header className="post-card__header">
@@ -114,20 +165,38 @@ export default function PostCard({ onRemove, post }) {
             className="post-card__avatar"
             src={getPostAvatar(currentPost)}
           />
-          <div>
-            <h3>{getPostAuthorName(currentPost)}</h3>
-            <p>
-              {getPostTimestamp(currentPost)} / {getPostLocation(currentPost)}
-            </p>
+          <div className="post-card__author-copy">
+            <div className="post-card__author-line">
+              <h3>{authorUsername}</h3>
+              <span className="post-card__dot">•</span>
+              <span className="post-card__time">{getPostTimestamp(currentPost)}</span>
+            </div>
+            {getPostLocation(currentPost) !== "Global" ? (
+              <p>{getPostLocation(currentPost)}</p>
+            ) : null}
           </div>
         </Link>
-        {isOwnPost ? (
-          <button className="icon-button" disabled={isDeleting} onClick={() => setIsConfirmOpen(true)} type="button">
-            <span className="material-symbols-outlined">
-              {isDeleting ? "hourglass_top" : "delete"}
+        <div className="post-card__header-actions">
+          {!isOwnPost ? (
+            <button
+              className={`post-card__follow-btn ${currentPost.author?.isFollowing ? "is-following" : ""}`}
+              disabled={isFollowPending}
+              onClick={handleFollowAuthor}
+              type="button"
+            >
+              {isFollowPending ? "..." : currentPost.author?.isFollowing ? "Following" : "Follow"}
+            </button>
+          ) : null}
+          {isOwnPost ? (
+            <button className="post-card__more-btn" disabled={isDeleting} onClick={() => setIsConfirmOpen(true)} type="button">
+              {isDeleting ? <Loader2 className="animate-spin" size={20} /> : <MoreHorizontal size={20} />}
+            </button>
+          ) : (
+            <span className="post-card__more-btn post-card__more-btn--static">
+              <MoreHorizontal size={20} />
             </span>
-          </button>
-        ) : null}
+          )}
+        </div>
       </header>
 
       {media && isVideoMedia(media) ? (
@@ -136,6 +205,8 @@ export default function PostCard({ onRemove, post }) {
           controls
           preload="metadata"
           src={media.url}
+          onClick={() => setIsModalOpen(true)}
+          style={{ cursor: 'pointer' }}
         />
       ) : null}
 
@@ -144,12 +215,14 @@ export default function PostCard({ onRemove, post }) {
           alt={getPostCaption(currentPost) || getPostAuthorName(currentPost)}
           className="post-card__cover"
           src={media.url}
+          onClick={() => setIsModalOpen(true)}
+          style={{ cursor: 'pointer' }}
         />
       ) : null}
 
       {!media ? (
         <div className="post-card__cover post-card__cover--empty">
-          <span className="material-symbols-outlined">image</span>
+          <Image size={48} />
           <p>No media attached</p>
         </div>
       ) : null}
@@ -163,8 +236,8 @@ export default function PostCard({ onRemove, post }) {
               liked={currentPost.likedByViewer}
               onClick={handleLike}
             />
-            <button className="metric-button" type="button">
-              <span className="material-symbols-outlined">chat_bubble</span>
+            <button className="metric-button" type="button" onClick={() => setIsModalOpen(true)}>
+              <MessageSquare size={24} />
               <span>{getPostCommentCount(currentPost)}</span>
             </button>
             <button 
@@ -176,38 +249,27 @@ export default function PostCard({ onRemove, post }) {
                 setIsShareOpen(true);
               }}
             >
-              <span className="material-symbols-outlined">send</span>
+              <Send size={24} />
             </button>
           </div>
           <button className="icon-button" disabled={isSavePending} onClick={handleSave} type="button">
-            <span
-              className={
-                currentPost.savedByViewer
-                  ? "material-symbols-outlined filled metric-button__liked"
-                  : "material-symbols-outlined"
-              }
-            >
-              bookmark
-            </span>
+            <Bookmark 
+              size={24}
+              className={currentPost.savedByViewer ? "metric-button__liked" : ""}
+              fill={currentPost.savedByViewer ? "currentColor" : "none"}
+            />
           </button>
         </div>
 
         <p className="post-card__caption">
-          <strong>{getPostAuthorName(currentPost)}</strong> {getPostCaption(currentPost)}
+          <strong>{authorUsername}</strong>
+          {" "}{captionPreview}
+          {caption.length > captionPreview.length ? <span className="post-card__more-caption">more</span> : null}
         </p>
 
         {error ? <p className="form-error post-card__error">{error}</p> : null}
 
-        <CommentSection
-          count={getPostCommentCount(currentPost)}
-          onCountChange={(nextCount) =>
-            setCurrentPost((existingPost) => ({
-              ...existingPost,
-              commentsCount: nextCount
-            }))
-          }
-          postId={currentPost.id}
-        />
+
       </div>
       
       {isShareOpen && (
@@ -222,6 +284,19 @@ export default function PostCard({ onRemove, post }) {
           }} 
         />
       )}
+
+      <PostModal 
+        open={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        post={currentPost}
+        onPostUpdated={(updated) => {
+          if (updated.deleted) {
+            onRemove?.(updated.id);
+          } else {
+            setCurrentPost(prev => ({ ...prev, ...updated }));
+          }
+        }}
+      />
 
       <ConfirmModal 
         isOpen={isConfirmOpen}

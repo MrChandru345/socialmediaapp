@@ -108,6 +108,62 @@ export function formatMessageTime(value) {
   });
 }
 
+export function formatCompactRelativeTime(value) {
+  if (!value) {
+    return "just now";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "just now";
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+
+  if (elapsedSeconds < 45) {
+    return "just now";
+  }
+
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+
+  if (elapsedMinutes < 60) {
+    return `${elapsedMinutes} min ago`;
+  }
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+
+  if (elapsedHours < 24) {
+    return `${elapsedHours} hr ago`;
+  }
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+
+  if (elapsedDays < 7) {
+    return `${elapsedDays} d ago`;
+  }
+
+  return date.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short"
+  });
+}
+
+export function getMessageStatusLabel(message, isMine) {
+  if (!message) {
+    return "";
+  }
+
+  if (!isMine) {
+    return formatCompactRelativeTime(message.createdAt);
+  }
+
+  const status = message.seenAt ? "Seen" : "Sent";
+  const timestamp = message.seenAt || message.createdAt;
+
+  return `${status} ${formatCompactRelativeTime(timestamp)}`;
+}
+
 /**
  * Returns a centered date-separator label for chat messages:
  * - Today     → "Today"

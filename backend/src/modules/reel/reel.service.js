@@ -165,6 +165,18 @@ async function getReels(query, viewerId) {
   };
 }
 
+async function getReelById(reelId, viewerId) {
+  const reel = await Reel.findById(reelId)
+    .populate("author", "username fullName avatar role followers")
+    .lean();
+
+  if (!reel) {
+    throw new AppError(404, "Reel not found");
+  }
+
+  return formatReel(reel, viewerId);
+}
+
 async function toggleReelLike(reelId, userId) {
   const reel = await Reel.findById(reelId);
 
@@ -258,6 +270,7 @@ module.exports = {
   createReel,
   deleteReel,
   getReels,
+  getReelById,
   toggleReelLike,
   toggleReelSave
 };

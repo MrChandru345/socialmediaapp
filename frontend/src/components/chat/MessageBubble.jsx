@@ -340,7 +340,6 @@ export default function MessageBubble({
         <div className="message-bubble-row">
           <span className="message-timestamp message-timestamp--hover">
             {message.time}
-            {isMe && message.seen && " · Seen"}
           </span>
         </div>
       </div>
