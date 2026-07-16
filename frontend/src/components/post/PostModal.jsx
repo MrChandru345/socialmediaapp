@@ -239,7 +239,7 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
             {/* LEFT: Media */}
             <div className="post-modal-media">
               {media && isVideoMedia(media) ? (
-                <video className="post-modal-content" controls autoPlay loop muted src={media.url} />
+                <video className="post-modal-content" controls controlsList="nodownload" autoPlay loop muted src={media.url} />
               ) : media ? (
                 <img className="post-modal-content" src={media.url} alt="Post" />
               ) : (

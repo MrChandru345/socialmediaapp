@@ -110,8 +110,8 @@ export default function ReelCommentModal({ reel, onClose, onCommentAdded, onComm
   }
 
   return (
-    <div className="reel-modal-overlay" onClick={(e) => { e.stopPropagation(); onClose(); }} style={{ alignItems: "center" }}>
-      <div className="reel-comments-drawer" style={{ height: "70vh", maxWidth: "450px", borderRadius: "16px" }} onClick={e => e.stopPropagation()}>
+    <div className="reel-modal-overlay reel-comments-overlay" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+      <div className="reel-comments-drawer" onClick={e => e.stopPropagation()}>
         
         <div className="drawer-header" style={{ position: "relative", justifyContent: "center", padding: "16px" }}>
           <button onClick={onClose} style={{ position: "absolute", left: "16px", background: "none", border: "none", color: "var(--text)", cursor: "pointer", display: "flex" }}>

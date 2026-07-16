@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import AppShell from "./components/common/AppShell";
 import Loader from "./components/common/Loader";
@@ -7,20 +7,24 @@ import Admin from "./pages/Admin";
 import Chat from "./pages/Chat";
 import Explore from "./pages/Explore";
 import Home from "./pages/Home";
+import ForgotPassword from "./pages/auth/ForgotPassword";
 import Login from "./pages/auth/Login";
 import Profile from "./pages/Profile";
 import Reels from "./pages/Reels";
+import ResetPassword from "./pages/auth/ResetPassword";
 import Signup from "./pages/auth/Signup";
+import VerifyEmail from "./pages/auth/VerifyEmail";
 
 function ProtectedPage({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return <Loader />;
   }
 
   if (!isAuthenticated) {
-    return <Navigate replace to="/login" />;
+    return <Navigate replace state={{ from: location }} to="/login" />;
   }
 
   return <AppShell>{children}</AppShell>;
@@ -28,12 +32,14 @@ function ProtectedPage({ children }) {
 
 function PublicPage({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+  const allowAuthenticatedSignup = location.pathname === "/signup" && new URLSearchParams(location.search).get("addAccount") === "1";
 
   if (isLoading) {
     return <Loader />;
   }
 
-  if (isAuthenticated) {
+  if (isAuthenticated && !allowAuthenticatedSignup) {
     return <Navigate replace to="/" />;
   }
 
@@ -59,6 +65,23 @@ export default function App() {
           </PublicPage>
         }
       />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicPage>
+            <ForgotPassword />
+          </PublicPage>
+        }
+      />
+      <Route
+        path="/reset-password"
+        element={
+          <PublicPage>
+            <ResetPassword />
+          </PublicPage>
+        }
+      />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route
         path="/"
         element={

@@ -339,7 +339,7 @@ export default function Explore() {
                     type="button"
                   >
                     {media && isVideoMedia(media) ? (
-                      <video src={media.url} className={postIsReel ? "reels-tile__video" : "gallery-tile__image"} playsInline muted loop autoPlay />
+                      <video src={media.url} className={postIsReel ? "reels-tile__video" : "gallery-tile__image"} playsInline muted preload="metadata" />
                     ) : media ? (
                       <img src={media.url} alt="Post" className="gallery-tile__image" />
                     ) : (

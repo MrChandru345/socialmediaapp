@@ -225,24 +225,6 @@ export default function Home() {
             stories={state.stories}
           />
 
-          <section className="sidebar-card composer-launcher">
-            <div>
-              <p className="eyebrow">Live feed</p>
-              <h2>{getFeedHeading(user)}</h2>
-              <p>
-                Share a new post, add a story, and keep your network moving with real data from the
-                backend.
-              </p>
-            </div>
-            <div className="composer-launcher__actions">
-              <Button icon="add_photo_alternate" onClick={() => setIsCreatePostOpen(true)}>
-                Create post
-              </Button>
-              <Button icon="auto_stories" onClick={() => setIsCreateStoryOpen(true)} variant="ghost">
-                Add story
-              </Button>
-            </div>
-          </section>
 
           {state.error ? (
             <section className="sidebar-card home-banner home-banner--error">

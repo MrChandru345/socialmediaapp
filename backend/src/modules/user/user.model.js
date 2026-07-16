@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      minlength: 6,
+      minlength: 8,
       select: false
     },
     fullName: {
@@ -56,6 +56,24 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: ""
+    },
+    birthDate: {
+      type: Date,
+      default: null
+    },
+    gender: {
+      type: String,
+      enum: ["", "female", "male", "nonbinary", "prefer_not_to_say", "custom"],
+      default: ""
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false
+    },
+    status: {
+      type: String,
+      enum: ["active", "suspended"],
+      default: "active"
     },
     followers: [
       {

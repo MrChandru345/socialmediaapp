@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { MessageSquare, Send, Bookmark, MoreHorizontal, Loader2, Image } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { MessageSquare, Send, Bookmark, MoreHorizontal, Loader2, Image, Volume2, VolumeX, Play, Pause } from "lucide-react";
 import ShareModal from "../common/ShareModal";
 import ConfirmModal from "../common/ConfirmModal";
 import PostModal from "./PostModal";
@@ -28,6 +28,8 @@ import {
 import CommentSection from "./CommentSection";
 import LikeButton from "./LikeButton";
 
+let globalMuted = true;
+
 export default function PostCard({ onRemove, post }) {
   const { user } = useAuth();
   const [currentPost, setCurrentPost] = useState(() => createOptimisticPost(post));
@@ -39,11 +41,102 @@ export default function PostCard({ onRemove, post }) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isFollowPending, setIsFollowPending] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
+
+  // Video autoplay & controls state
+  const navigate = useNavigate();
+  const videoRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(globalMuted);
+  const [volume, setVolume] = useState(1);
 
   useEffect(() => {
     setCurrentPost(createOptimisticPost(post));
     setError("");
+    setIsCaptionExpanded(false);
   }, [post]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            if (videoRef.current) {
+              videoRef.current.muted = globalMuted;
+              videoRef.current.volume = volume;
+              setIsMuted(globalMuted);
+              videoRef.current.play().catch((err) => console.log("Autoplay blocked:", err));
+            }
+            setIsPlaying(true);
+          } else {
+            videoRef.current?.pause();
+            setIsPlaying(false);
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    if (videoRef.current) {
+      observer.observe(videoRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  const handleVideoClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isPostReel) {
+      navigate(`/reels?reelId=${currentPost.id}`);
+      return;
+    }
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play().catch((err) => console.log("Play failed:", err));
+      setIsPlaying(true);
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const handleMuteToggle = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const nextMuted = !isMuted;
+    globalMuted = nextMuted;
+    setIsMuted(nextMuted);
+    if (videoRef.current) {
+      videoRef.current.muted = nextMuted;
+      if (!nextMuted) {
+        videoRef.current.volume = volume;
+      }
+    }
+  };
+
+  const handleVolumeChange = (e) => {
+    e.stopPropagation();
+    const newVol = parseFloat(e.target.value);
+    setVolume(newVol);
+    if (videoRef.current) {
+      videoRef.current.volume = newVol;
+    }
+    if (newVol > 0) {
+      setIsMuted(false);
+      globalMuted = false;
+      if (videoRef.current) {
+        videoRef.current.muted = false;
+      }
+    } else {
+      setIsMuted(true);
+      globalMuted = true;
+      if (videoRef.current) {
+        videoRef.current.muted = true;
+      }
+    }
+  };
 
   const media = getPostMedia(currentPost);
   const isPostReel = isReel(currentPost);
@@ -187,27 +280,49 @@ export default function PostCard({ onRemove, post }) {
               {isFollowPending ? "..." : currentPost.author?.isFollowing ? "Following" : "Follow"}
             </button>
           ) : null}
-          {isOwnPost ? (
-            <button className="post-card__more-btn" disabled={isDeleting} onClick={() => setIsConfirmOpen(true)} type="button">
-              {isDeleting ? <Loader2 className="animate-spin" size={20} /> : <MoreHorizontal size={20} />}
-            </button>
-          ) : (
-            <span className="post-card__more-btn post-card__more-btn--static">
-              <MoreHorizontal size={20} />
-            </span>
-          )}
+          <button 
+            className="post-card__more-btn" 
+            disabled={isDeleting} 
+            onClick={() => setShowMoreMenu(true)} 
+            type="button"
+          >
+            {isDeleting ? <Loader2 className="animate-spin" size={20} /> : <MoreHorizontal size={20} />}
+          </button>
         </div>
       </header>
 
       {media && isVideoMedia(media) ? (
-        <video
-          className={isPostReel ? "post-card__cover post-card__cover--reel" : "post-card__cover"}
-          controls
-          preload="metadata"
-          src={media.url}
-          onClick={() => setIsModalOpen(true)}
-          style={{ cursor: 'pointer' }}
-        />
+        <div className={`post-card__video-wrapper ${isPlaying ? "is-playing" : "is-paused"}`}>
+          <video
+            ref={videoRef}
+            className={isPostReel ? "post-card__cover post-card__cover--reel" : "post-card__cover"}
+            preload="metadata"
+            src={media.url}
+            loop
+            playsInline
+            muted={isMuted}
+            onClick={handleVideoClick}
+          />
+          
+          <button className="post-card__video-center-btn" onClick={handleVideoClick} type="button" aria-label={isPlaying ? "Pause" : "Play"}>
+            {isPlaying ? <Pause size={32} fill="white" color="white" /> : <Play size={32} fill="white" color="white" />}
+          </button>
+
+          <div className="post-card__video-sound-control">
+            <input 
+              className="post-card__video-volume-slider"
+              max="1"
+              min="0"
+              onChange={handleVolumeChange}
+              step="0.05"
+              type="range"
+              value={isMuted ? 0 : volume}
+            />
+            <button className="post-card__video-mute-btn" onClick={handleMuteToggle} type="button" aria-label={isMuted ? "Unmute" : "Mute"}>
+              {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {media && !isVideoMedia(media) ? (
@@ -215,7 +330,13 @@ export default function PostCard({ onRemove, post }) {
           alt={getPostCaption(currentPost) || getPostAuthorName(currentPost)}
           className="post-card__cover"
           src={media.url}
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            if (isPostReel) {
+              navigate(`/reels?reelId=${currentPost.id}`);
+            } else {
+              setIsModalOpen(true);
+            }
+          }}
           style={{ cursor: 'pointer' }}
         />
       ) : null}
@@ -263,8 +384,16 @@ export default function PostCard({ onRemove, post }) {
 
         <p className="post-card__caption">
           <strong>{authorUsername}</strong>
-          {" "}{captionPreview}
-          {caption.length > captionPreview.length ? <span className="post-card__more-caption">more</span> : null}
+          {" "}{isCaptionExpanded ? caption : captionPreview}
+          {!isCaptionExpanded && caption.length > captionPreview.length ? (
+            <span 
+              className="post-card__more-caption" 
+              onClick={() => setIsCaptionExpanded(true)}
+              style={{ cursor: "pointer", marginLeft: "4px" }}
+            >
+              more
+            </span>
+          ) : null}
         </p>
 
         {error ? <p className="form-error post-card__error">{error}</p> : null}
@@ -306,6 +435,46 @@ export default function PostCard({ onRemove, post }) {
         title="Delete Post?"
         message="Are you sure you want to delete this permanently? This action cannot be undone."
       />
+
+      {showMoreMenu && (
+        <div className="reel-modal-overlay" onClick={() => setShowMoreMenu(false)} style={{ alignItems: "center", justifyContent: "center" }}>
+          <div className="reel-mini-modal" onClick={(e) => e.stopPropagation()}>
+            {isOwnPost ? (
+              <button 
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  setIsConfirmOpen(true);
+                }} 
+                style={{ color: "var(--danger)", fontWeight: "600" }}
+              >
+                Delete Post
+              </button>
+            ) : (
+              <>
+                <button 
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    alert("Thank you for your report. We will review this post.");
+                  }} 
+                  style={{ color: "var(--danger)", fontWeight: "600" }}
+                >
+                  Report Post
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    navigator.clipboard.writeText(`${window.location.origin}/post/${currentPost.id}`);
+                    alert("Link copied to clipboard!");
+                  }}
+                >
+                  Copy Link
+                </button>
+              </>
+            )}
+            <button onClick={() => setShowMoreMenu(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
     </article>
   );
 }

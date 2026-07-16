@@ -126,8 +126,6 @@ export default function ChatBox() {
 
         if (requestedUserId && existingIds.has(String(requestedUserId))) {
           setActiveConversationId(requestedUserId);
-        } else if (convoItems.length > 0 && !activeConversationId) {
-          setActiveConversationId(convoItems[0].otherUser.id);
         }
       } catch (error) {
         console.error("Failed to load conversations:", error);
@@ -1188,7 +1186,7 @@ export default function ChatBox() {
             </div>
             <h2>Your messages</h2>
             <p>Send private photos and messages to a friend or group</p>
-            <button className="btn btn-primary">Send message</button>
+            <button className="btn btn-primary" onClick={() => setShowNewMessageModal(true)}>Send message</button>
           </div>
         )}
       </div>
