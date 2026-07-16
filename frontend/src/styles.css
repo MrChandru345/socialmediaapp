@@ -8131,3 +8131,42 @@ body.reels-page-active .sidebar:hover .user-chip {
     transform: translateX(0);
   }
 }
+
+/* =============================================
+   MOBILE RESPONSIVE FEED & SEARCH OVERRIDES (SAFE)
+   ============================================= */
+
+/* Mobile-Only Search Grid Overrides */
+@media (max-width: 720px) {
+  .explore-gallery-grid .gallery-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-auto-rows: calc((100vw - 6px) / 3) !important;
+    grid-auto-flow: dense !important;
+    gap: 3px !important;
+    padding: 0 !important;
+  }
+
+  .explore-gallery-grid .reels-tile {
+    grid-row: span 2 !important;
+    aspect-ratio: auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    border-radius: 4px !important;
+  }
+
+  .explore-gallery-grid .gallery-tile {
+    aspect-ratio: 1 / 1 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    border-radius: 4px !important;
+  }
+}
+
+/* Hide comments inside PostModal in Mobile Column View */
+@media (max-width: 900px) {
+  .post-modal-thread .comment-item,
+  .post-modal-thread .no-comments-msg,
+  .post-modal-form {
+    display: none !important;
+  }
+}
