@@ -296,7 +296,7 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
             {isLoadingComments ? (
               <div style={{ padding: '1.5rem 0' }}><Loader /></div>
             ) : comments.length === 0 ? (
-              <p style={{ color: 'var(--text-soft)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>
+              <p className="no-comments-msg" style={{ color: 'var(--text-soft)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>
                 No comments yet.
               </p>
             ) : (
@@ -304,7 +304,7 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
                 const cid = getCommentId(comment);
                 const isOwn = isOwnResource(comment?.author?.id, user?.id);
                 return (
-                  <div className="thread-item" key={cid}>
+                  <div className="thread-item comment-item" key={cid}>
                     <img
                       src={getAvatarForUser(comment.author, getCommentAuthorLabel(comment))}
                       alt=""

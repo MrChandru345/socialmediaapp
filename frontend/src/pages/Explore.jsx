@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 
 import Button from "../components/common/Button";
 import Loader from "../components/common/Loader";
@@ -38,6 +38,7 @@ const initialState = {
 
 export default function Explore() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchDraft, setSearchDraft] = useState("");
   const [pendingFollowIds, setPendingFollowIds] = useState([]);
@@ -335,7 +336,13 @@ export default function Explore() {
                   <button
                     key={`${postIsReel ? "reel" : "post"}-${post.id}`}
                     className={postIsReel ? "reels-tile" : "gallery-tile"}
-                    onClick={() => setSelectedPost(post)}
+                    onClick={() => {
+                      if (postIsReel) {
+                        navigate(`/reels?reelId=${post.id}`);
+                      } else {
+                        setSelectedPost(post);
+                      }
+                    }}
                     type="button"
                   >
                     {media && isVideoMedia(media) ? (
@@ -345,12 +352,7 @@ export default function Explore() {
                     ) : (
                       <div className="gallery-tile__image empty" />
                     )}
-                    
-                    {postIsReel && (
-                      <div className="reels-tile__badge">
-                        <span className="material-symbols-outlined">movie</span>
-                      </div>
-                    )}
+
 
                     <div className="gallery-tile__overlay modern-glass-overlay">
                       <span className="overlay-stat">
