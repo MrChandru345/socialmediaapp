@@ -39,6 +39,22 @@ export default function Reels() {
     getReels();
   }, []);
 
+  useEffect(() => {
+    if (!isLoading && reels.length > 0) {
+      const searchParams = new URLSearchParams(location.search);
+      const reelId = searchParams.get("reelId");
+      if (reelId) {
+        const timer = setTimeout(() => {
+          const element = document.getElementById(`reel-${reelId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: "auto", block: "start" });
+          }
+        }, 150);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isLoading, reels, location.search]);
+
   return (
     <div className="reels-container">
       {isLoading ? (

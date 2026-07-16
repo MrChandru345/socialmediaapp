@@ -177,7 +177,7 @@ export default function ReelPlayer({ reel, onPostClick }) {
   const hasLongCaption = reel.caption && reel.caption.length > CAPTION_LIMIT;
 
   return (
-    <article className="reel-fullscreen">
+    <article id={`reel-${reel.id}`} className="reel-fullscreen">
       <div className="reel-layout-group">
         {/* LEFT INFO PANEL - outside the video, matching video height */}
         <div className="reel-left-panel">

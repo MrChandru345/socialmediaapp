@@ -81,8 +81,7 @@ export default function PostGrid({ posts = [], isOwnProfile, onCreatePost, activ
                 className={videoClass} 
                 playsInline 
                 muted 
-                loop 
-                autoPlay 
+                preload="metadata" 
               />
             ) : media ? (
               <img src={media.url} alt="Post" className="gallery-tile__image" />

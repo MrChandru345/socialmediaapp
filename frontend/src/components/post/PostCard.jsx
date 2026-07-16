@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { MessageSquare, Send, Bookmark, MoreHorizontal, Loader2, Image } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { MessageSquare, Send, Bookmark, MoreHorizontal, Loader2, Image, Volume2, VolumeX, Play, Pause } from "lucide-react";
 import ShareModal from "../common/ShareModal";
 import ConfirmModal from "../common/ConfirmModal";
 import PostModal from "./PostModal";
@@ -28,6 +28,8 @@ import {
 import CommentSection from "./CommentSection";
 import LikeButton from "./LikeButton";
 
+let globalMuted = true;
+
 export default function PostCard({ onRemove, post }) {
   const { user } = useAuth();
   const [currentPost, setCurrentPost] = useState(() => createOptimisticPost(post));
@@ -42,11 +44,99 @@ export default function PostCard({ onRemove, post }) {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
 
+  // Video autoplay & controls state
+  const navigate = useNavigate();
+  const videoRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(globalMuted);
+  const [volume, setVolume] = useState(1);
+
   useEffect(() => {
     setCurrentPost(createOptimisticPost(post));
     setError("");
     setIsCaptionExpanded(false);
   }, [post]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            if (videoRef.current) {
+              videoRef.current.muted = globalMuted;
+              videoRef.current.volume = volume;
+              setIsMuted(globalMuted);
+              videoRef.current.play().catch((err) => console.log("Autoplay blocked:", err));
+            }
+            setIsPlaying(true);
+          } else {
+            videoRef.current?.pause();
+            setIsPlaying(false);
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    if (videoRef.current) {
+      observer.observe(videoRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  const handleVideoClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isPostReel) {
+      navigate(`/reels?reelId=${currentPost.id}`);
+      return;
+    }
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play().catch((err) => console.log("Play failed:", err));
+      setIsPlaying(true);
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const handleMuteToggle = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const nextMuted = !isMuted;
+    globalMuted = nextMuted;
+    setIsMuted(nextMuted);
+    if (videoRef.current) {
+      videoRef.current.muted = nextMuted;
+      if (!nextMuted) {
+        videoRef.current.volume = volume;
+      }
+    }
+  };
+
+  const handleVolumeChange = (e) => {
+    e.stopPropagation();
+    const newVol = parseFloat(e.target.value);
+    setVolume(newVol);
+    if (videoRef.current) {
+      videoRef.current.volume = newVol;
+    }
+    if (newVol > 0) {
+      setIsMuted(false);
+      globalMuted = false;
+      if (videoRef.current) {
+        videoRef.current.muted = false;
+      }
+    } else {
+      setIsMuted(true);
+      globalMuted = true;
+      if (videoRef.current) {
+        videoRef.current.muted = true;
+      }
+    }
+  };
 
   const media = getPostMedia(currentPost);
   const isPostReel = isReel(currentPost);
@@ -202,15 +292,37 @@ export default function PostCard({ onRemove, post }) {
       </header>
 
       {media && isVideoMedia(media) ? (
-        <video
-          className={isPostReel ? "post-card__cover post-card__cover--reel" : "post-card__cover"}
-          controls
-          controlsList="nodownload"
-          preload="metadata"
-          src={media.url}
-          onClick={() => setIsModalOpen(true)}
-          style={{ cursor: 'pointer' }}
-        />
+        <div className={`post-card__video-wrapper ${isPlaying ? "is-playing" : "is-paused"}`}>
+          <video
+            ref={videoRef}
+            className={isPostReel ? "post-card__cover post-card__cover--reel" : "post-card__cover"}
+            preload="metadata"
+            src={media.url}
+            loop
+            playsInline
+            muted={isMuted}
+            onClick={handleVideoClick}
+          />
+          
+          <button className="post-card__video-center-btn" onClick={handleVideoClick} type="button" aria-label={isPlaying ? "Pause" : "Play"}>
+            {isPlaying ? <Pause size={32} fill="white" color="white" /> : <Play size={32} fill="white" color="white" />}
+          </button>
+
+          <div className="post-card__video-sound-control">
+            <input 
+              className="post-card__video-volume-slider"
+              max="1"
+              min="0"
+              onChange={handleVolumeChange}
+              step="0.05"
+              type="range"
+              value={isMuted ? 0 : volume}
+            />
+            <button className="post-card__video-mute-btn" onClick={handleMuteToggle} type="button" aria-label={isMuted ? "Unmute" : "Mute"}>
+              {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {media && !isVideoMedia(media) ? (
@@ -218,7 +330,13 @@ export default function PostCard({ onRemove, post }) {
           alt={getPostCaption(currentPost) || getPostAuthorName(currentPost)}
           className="post-card__cover"
           src={media.url}
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            if (isPostReel) {
+              navigate(`/reels?reelId=${currentPost.id}`);
+            } else {
+              setIsModalOpen(true);
+            }
+          }}
           style={{ cursor: 'pointer' }}
         />
       ) : null}
