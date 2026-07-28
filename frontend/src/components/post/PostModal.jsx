@@ -64,7 +64,7 @@ function ContentMenu({ onDelete, isDeletePending }) {
   );
 }
 
-export default function PostModal({ post, open, onClose, onPostUpdated }) {
+export default function PostModal({ post, open, onClose, onPostUpdated, isBottomSheet = false }) {
   const { user } = useAuth();
   const [currentPost, setCurrentPost] = useState(null);
   const [comments, setComments] = useState([]);
@@ -225,7 +225,7 @@ export default function PostModal({ post, open, onClose, onPostUpdated }) {
 
       {/* Modal card */}
       <div
-        className={`instagram-post-modal ${!currentPost ? 'is-loading' : ''}`}
+        className={`instagram-post-modal ${!currentPost ? 'is-loading' : ''} ${isBottomSheet ? 'post-modal--bottom-sheet' : ''}`}
         onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

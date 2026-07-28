@@ -22,6 +22,14 @@ const navItems = [
   { label: "Profile", icon: "person", to: "/profile" }
 ];
 
+const mobileNavItems = [
+  { label: "Home", icon: "home", to: "/" },
+  { label: "Search", icon: "search", to: "/explore" },
+  { label: "Messages", icon: "near_me", to: "/chat" },
+  { label: "Reels", icon: "movie", to: "/reels" },
+  { label: "Profile", icon: "person", to: "/profile" }
+];
+
 const topbarLinks = [
   { label: "Curated Feed", to: "/" },
   { label: "Creators", to: "/explore" },
@@ -367,26 +375,21 @@ export default function AppShell({ children }) {
 
         <div className="shell-main">
           <header className="topbar">
-            <div className="topbar-brand">
+            <div className="topbar-brand" style={{ fontFamily: "'Grand Hotel', cursive, sans-serif", fontSize: "2rem" }}>
               Curator
             </div>
             <div className="topbar-tools">
-              <NotificationBell count={notifications.unreadCount} onClick={handleOpenNotifications} />
-              <button className="icon-button" onClick={() => navigate('/chat')} type="button" style={{ position: 'relative' }}>
-                <span className="material-symbols-outlined">near_me</span>
-                {unreadChatCount > 0 && (
-                  <span className="sidebar-badge sidebar-badge--topbar">
-                    {unreadChatCount > 9 ? '9+' : unreadChatCount}
-                  </span>
-                )}
+              <button className="icon-button" onClick={openPostComposer} type="button">
+                <span className="material-symbols-outlined">add_box</span>
               </button>
+              <NotificationBell count={notifications.unreadCount} onClick={handleOpenNotifications} />
             </div>
           </header>
 
           <main className="shell-content">{children}</main>
 
           <nav aria-label="Mobile navigation" className="mobile-nav">
-            {navItems.map((item) => (
+            {mobileNavItems.map((item) => (
               <NavLink
                 key={`mobile-${item.to}`}
                 className={({ isActive }) =>
@@ -394,32 +397,17 @@ export default function AppShell({ children }) {
                 }
                 to={item.to}
               >
-                <span className="material-symbols-outlined">{item.icon}</span>
+                <div style={{ position: 'relative', display: 'flex' }}>
+                  <span className="material-symbols-outlined">{item.icon}</span>
+                  {item.label === "Messages" && unreadChatCount > 0 && (
+                    <span className="sidebar-badge" style={{ position: 'absolute', top: -4, right: -6, width: 16, height: 16, fontSize: '10px' }}>
+                      {unreadChatCount > 9 ? '9+' : unreadChatCount}
+                    </span>
+                  )}
+                </div>
                 <span>{item.label}</span>
               </NavLink>
             ))}
-            
-            <button
-              className={`mobile-link ${isNotificationOpen ? "mobile-link--active" : ""}`}
-              onClick={handleOpenNotifications}
-              type="button"
-            >
-              <div style={{ position: 'relative', display: 'flex' }}>
-                <span className={`material-symbols-outlined ${isNotificationOpen ? 'filled' : ''}`}>favorite</span>
-                {notifications.unreadCount > 0 && (
-                  <span style={{
-                    position: 'absolute', top: -4, right: -6, 
-                    background: 'var(--danger)', color: 'white', 
-                    borderRadius: '50%', width: 16, height: 16, 
-                    fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontWeight: 700
-                  }}>
-                    {notifications.unreadCount > 9 ? '9+' : notifications.unreadCount}
-                  </span>
-                )}
-              </div>
-              <span>Notifications</span>
-            </button>
           </nav>
         </div>
       </div>

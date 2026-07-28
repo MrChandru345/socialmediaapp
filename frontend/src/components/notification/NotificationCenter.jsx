@@ -106,7 +106,16 @@ export default function NotificationCenter({
       <aside className={`notification-sidebar ${open ? "open" : ""}`}>
         <div className="activity-header">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h3 style={{ margin: 0 }}>Activity</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <button 
+                className="mobile-back-btn" 
+                onClick={onClose} 
+                style={{ background: "none", border: "none", padding: 0, display: "flex", alignItems: "center", cursor: "pointer", color: "var(--text)" }}
+              >
+                <span className="material-symbols-outlined">arrow_back</span>
+              </button>
+              <h3 style={{ margin: 0 }}>Activity</h3>
+            </div>
             {hasUnread && (
               <button 
                 onClick={onMarkAllRead} 
