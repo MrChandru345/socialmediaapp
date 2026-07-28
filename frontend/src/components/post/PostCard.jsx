@@ -418,6 +418,7 @@ export default function PostCard({ onRemove, post }) {
         open={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         post={currentPost}
+        isBottomSheet={true}
         onPostUpdated={(updated) => {
           if (updated.deleted) {
             onRemove?.(updated.id);

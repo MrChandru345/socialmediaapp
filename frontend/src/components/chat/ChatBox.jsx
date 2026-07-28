@@ -706,8 +706,10 @@ export default function ChatBox() {
     c.otherUser.fullName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const layoutClass = activeConversationId ? 'chat-layout--thread-open' : 'chat-layout--inbox';
+
   return (
-    <section className="chat-layout">
+    <section className={`chat-layout ${layoutClass}`}>
       <div className="chat-sidebar">
         {/* Instagram Sidebar Header */}
         {/* Instagram Sidebar Header - Simplified */}
@@ -867,6 +869,14 @@ export default function ChatBox() {
           <>
             <header className="chat-window__header">
               <div className="chat-window__identity">
+                <button 
+                  className="mobile-back-btn chat-mobile-back"
+                  onClick={() => setActiveConversationId(null)}
+                  title="Back to Messages"
+                  type="button"
+                >
+                  <span className="material-symbols-outlined">arrow_back</span>
+                </button>
                 <img alt={activeConversation.otherUser.fullName} src={getAvatarForUser(activeConversation.otherUser)} />
                 <div className="chat-identity__info">
                   <h3>{activeConversation.otherUser.fullName}</h3>
