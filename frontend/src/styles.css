@@ -8293,47 +8293,192 @@ body.reels-page-active .sidebar:hover .user-chip {
     height: 48px;
   }
 
-  /* Mobile Reels layout */
+  /* =========================================================
+     MOBILE REELS - Complete redesign for mobile viewport
+     Topbar: 60px, Bottom nav: 50px
+     ========================================================= */
+
+  /* The shell content must allow overflow so reels can be fixed */
+  body.reels-page-active .shell-content {
+    overflow: hidden !important;
+    padding: 0 !important;
+  }
+
+  /* Reels container: fixed, sits between topbar and bottom nav */
   .reels-container {
-    position: relative !important;
-    inset: auto !important;
-    left: auto !important;
-    width: 100% !important;
-    height: calc(100dvh - var(--bottom-nav-height) - env(safe-area-inset-bottom)) !important;
-    z-index: 1 !important;
-    align-items: stretch;
-    background: var(--background);
+    position: fixed !important;
+    top: 60px !important;
+    bottom: 50px !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    height: auto !important;
+    overflow: hidden !important;
+    z-index: 11 !important;
+    background: #000 !important;
+    display: block !important;
+    justify-content: unset !important;
+    align-items: unset !important;
   }
+
+  /* Scroll container fills the reels-container exactly */
   .reels-scroll-snap {
-    width: 100%;
-    height: 100%;
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow-y: scroll !important;
+    scroll-snap-type: y mandatory !important;
+    -webkit-overflow-scrolling: touch !important;
+    display: block !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
   }
+  .reels-scroll-snap::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* Each reel slide: exactly the same height as reels-container */
   .reel-fullscreen {
-    width: 100%;
-    height: calc(100dvh - var(--bottom-nav-height) - env(safe-area-inset-bottom));
-    min-height: calc(100dvh - var(--bottom-nav-height) - env(safe-area-inset-bottom));
+    position: relative !important;
+    width: 100% !important;
+    height: calc(100dvh - 60px - 50px) !important;
+    min-height: calc(100dvh - 60px - 50px) !important;
+    scroll-snap-align: start !important;
+    scroll-snap-stop: always !important;
+    display: block !important;
+    overflow: hidden !important;
   }
+
+  /* Layout group fills the slide, with relative positioning for overlays */
   .reel-layout-group {
-    width: 100%;
-    height: 100%;
-    max-height: none;
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+    display: block !important;
   }
+
+  /* Video wrapper fills the layout group fully */
+  .reel-video-wrapper {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+    aspect-ratio: auto !important;
+    border-radius: 0 !important;
+    background: #000 !important;
+    overflow: hidden !important;
+  }
+
+  /* Video fills its wrapper */
+  .reel-fullscreen__video {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    background: #000 !important;
+    display: block !important;
+  }
+
+  /* Author/caption overlay - bottom left, clear of action buttons */
   .reel-left-panel {
-    left: 16px;
-    right: 84px;
-    bottom: 22px;
-    width: auto;
-    z-index: 6;
-    padding-bottom: 0;
+    position: absolute !important;
+    bottom: 16px !important;
+    left: 12px !important;
+    right: 64px !important;
+    z-index: 20 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+  .reel-left__author img {
+    width: 34px !important;
+    height: 34px !important;
+    border: 2px solid rgba(255,255,255,0.7) !important;
+  }
+  .reel-left__username {
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    color: #fff !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8) !important;
+  }
+  .reel-left__follow-btn {
+    background: transparent !important;
+    border: 1.5px solid rgba(255,255,255,0.9) !important;
+    color: white !important;
+    padding: 1px 8px !important;
+    border-radius: 4px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+  }
+  .reel-left__follow-btn.is-following {
+    opacity: 0.7 !important;
   }
   .reel-left__caption {
-    max-height: 4.5em;
-    overflow: hidden;
+    max-height: 3em !important;
+    overflow: hidden !important;
+    word-break: break-word !important;
   }
-  .reel-actions-rail {
-    right: 12px;
-    bottom: 84px;
-    z-index: 7;
+  .reel-left__caption p {
+    font-size: 0.8rem !important;
+    color: #fff !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8) !important;
+    margin: 0 !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Action buttons - right side, above author info */
+  .reel-actions-sidebar {
+    position: absolute !important;
+    right: 8px !important;
+    bottom: 16px !important;
+    left: auto !important;
+    z-index: 20 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding-bottom: 0 !important;
+  }
+  .reel-action-btn {
+    background: transparent !important;
+    border: none !important;
+    color: white !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 2px !important;
+    cursor: pointer !important;
+    width: 42px !important;
+  }
+  .reel-action-btn .icon-circle {
+    width: 34px !important;
+    height: 34px !important;
+    background: rgba(0,0,0,0.3) !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .reel-action-btn .action-label {
+    font-size: 0.7rem !important;
+    color: white !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8) !important;
+    line-height: 1 !important;
+  }
+  .reel-music-disc {
+    width: 26px !important;
+    height: 26px !important;
+  }
+  .reel-mute-btn {
+    width: 30px !important;
+    height: 30px !important;
+    bottom: 8px !important;
+    right: 8px !important;
   }
 
   /* Notifications Panel layout */
