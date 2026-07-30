@@ -8956,7 +8956,7 @@ body.reels-page-active .sidebar:hover .user-chip {
     inset: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    object-fit: cover !important;
+    object-fit: contain !important;
     background: #000 !important;
     display: block !important;
   }
