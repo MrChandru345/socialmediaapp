@@ -89,11 +89,7 @@ export default function PostGrid({ posts = [], isOwnProfile, onCreatePost, activ
               <div className="gallery-tile__image empty" />
             )}
 
-            {(isReelsTab || postIsReel) && (
-              <div className="reels-tile__badge">
-                <span className="material-symbols-outlined">movie</span>
-              </div>
-            )}
+
 
             <div className="gallery-tile__overlay modern-glass-overlay">
               <span className="overlay-stat">

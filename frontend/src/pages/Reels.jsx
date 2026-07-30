@@ -27,8 +27,19 @@ export default function Reels() {
     async function getReels() {
       try {
         const data = await reelService.getAll();
-        // data might be { items: [], meta: {} }
-        const items = data?.items ? data.items : (Array.isArray(data) ? data : []);
+        let items = data?.items ? [...data.items] : (Array.isArray(data) ? [...data] : []);
+        
+        // If a reelId is requested, sort it to the top so it plays immediately without scrolling
+        const searchParams = new URLSearchParams(location.search);
+        const targetReelId = searchParams.get("reelId");
+        if (targetReelId) {
+          const targetIndex = items.findIndex(item => String(item.id) === String(targetReelId));
+          if (targetIndex > -1) {
+            const [targetReel] = items.splice(targetIndex, 1);
+            items.unshift(targetReel);
+          }
+        }
+        
         setReels(items);
       } catch (err) {
         console.error(err);
@@ -37,23 +48,7 @@ export default function Reels() {
       }
     }
     getReels();
-  }, []);
-
-  useEffect(() => {
-    if (!isLoading && reels.length > 0) {
-      const searchParams = new URLSearchParams(location.search);
-      const reelId = searchParams.get("reelId");
-      if (reelId) {
-        const timer = setTimeout(() => {
-          const element = document.getElementById(`reel-${reelId}`);
-          if (element) {
-            element.scrollIntoView({ behavior: "auto", block: "start" });
-          }
-        }, 150);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [isLoading, reels, location.search]);
+  }, [location.search]);
 
   return (
     <div className="reels-container">
