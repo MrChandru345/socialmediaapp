@@ -220,7 +220,7 @@ export default function ReelPlayer({ reel, onPostClick }) {
 
             {/* Caption */}
             {reel.caption && (
-              <div className="reel-left__caption">
+              <div className={`reel-left__caption ${isCaptionExpanded ? "is-expanded" : ""}`}>
                 <p>
                   {isCaptionExpanded || !hasLongCaption
                     ? reel.caption

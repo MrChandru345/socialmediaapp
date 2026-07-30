@@ -8869,7 +8869,7 @@ body.reels-page-active .sidebar:hover .user-chip {
     display: block !important;
     overflow: hidden !important;
     background: #000 !important;
-    z-index: 11 !important;
+    z-index: 105 !important;
     overscroll-behavior: contain;
   }
 
@@ -9055,6 +9055,12 @@ body.reels-page-active .sidebar:hover .user-chip {
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85) !important;
   }
 
+  body.reels-page-active .reel-left__caption.is-expanded p {
+    display: block !important;
+    -webkit-line-clamp: none !important;
+    overflow: visible !important;
+  }
+
   body.reels-page-active .reel-left__caption-toggle {
     margin-top: 2px !important;
     color: rgba(255, 255, 255, 0.72) !important;
@@ -9129,7 +9135,7 @@ body.reels-page-active .sidebar:hover .user-chip {
     align-items: center !important;
     justify-content: center !important;
     border-radius: 999px !important;
-    background: rgba(0, 0, 0, 0.18) !important;
+    background: transparent !important;
     filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.9)) !important;
   }
 
@@ -9137,6 +9143,10 @@ body.reels-page-active .sidebar:hover .user-chip {
     width: 27px !important;
     height: 27px !important;
     stroke-width: 2.1 !important;
+  }
+
+  body.reels-page-active .reel-action-btn.liked svg {
+    stroke-width: 0 !important;
   }
 
   body.reels-page-active .reel-action-btn .action-label {
@@ -9183,6 +9193,17 @@ body.reels-page-active .sidebar:hover .user-chip {
     margin: 0 !important;
     background: #000 !important;
     color: #fff !important;
+  }
+
+  /* Overlays on Mobile (Comment & Action modals) */
+  body.reels-page-active .reel-modal-overlay {
+    z-index: 1005 !important;
+  }
+  body.reels-page-active .reel-comments-overlay .reel-comments-drawer {
+    height: 70dvh !important;
+    max-height: 70dvh !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
   }
 }
 
