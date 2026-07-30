@@ -8842,19 +8842,25 @@ body.reels-page-active .sidebar:hover .user-chip {
     overflow: hidden !important;
   }
 
+  body.reels-page-active .topbar,
+  body.explore-page-active .topbar,
+  body.profile-page-active .topbar {
+    display: none !important;
+  }
+
   body.reels-page-active .shell-main,
   body.reels-page-active .shell-content {
     overflow: hidden !important;
   }
 
   body.reels-page-active .reels-container {
-    --reels-mobile-topbar-height: 60px;
+    --reels-mobile-topbar-height: 0px;
     --reels-mobile-bottom-nav-height: 50px;
     --reels-mobile-height: calc(
       100vh - var(--reels-mobile-topbar-height) - var(--reels-mobile-bottom-nav-height)
     );
     position: fixed !important;
-    top: var(--reels-mobile-topbar-height) !important;
+    top: 0 !important;
     bottom: auto !important;
     left: 0 !important;
     right: auto !important;
@@ -9204,6 +9210,23 @@ body.reels-page-active .sidebar:hover .user-chip {
     max-height: 70dvh !important;
     width: 100vw !important;
     max-width: 100vw !important;
+  }
+
+  /* Mobile Feed Post Card & Story Redesign */
+  .post-card {
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: 1px solid var(--surface-outline) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin-bottom: 16px !important;
+    background: transparent !important;
+  }
+
+  .story-strip {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
   }
 }
 

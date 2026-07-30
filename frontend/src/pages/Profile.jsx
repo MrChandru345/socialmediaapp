@@ -50,6 +50,13 @@ export default function Profile() {
   const isOwnProfile = Boolean(state.profile?.id && user?.id && state.profile.id === user.id);
 
   useEffect(() => {
+    document.body.classList.add("profile-page-active");
+    return () => {
+      document.body.classList.remove("profile-page-active");
+    };
+  }, []);
+
+  useEffect(() => {
     if (!profileIdentifier) return;
     loadProfile();
   }, [profileIdentifier]);
