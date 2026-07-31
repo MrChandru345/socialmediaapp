@@ -1128,6 +1128,7 @@ strong {
   height: 60px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -1163,6 +1164,7 @@ strong {
   align-items: center;
   gap: 8px;
   background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   padding: 6px 10px;
   border-radius: 20px;
@@ -1176,6 +1178,7 @@ strong {
   width: 20px;
   height: 20px;
   background: transparent;
+  -webkit-backdrop-filter: none;
   backdrop-filter: none;
   padding: 0;
   display: flex;
@@ -7366,8 +7369,8 @@ strong {
   transform-origin: bottom left;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: var(--surface-card);
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border-radius: 16px;
 }
 
@@ -7649,9 +7652,6 @@ strong {
   flex: 1;
   display: flex;
   flex-direction: column;
-}
-
-.choice-info strong {
 }
 
 .auth-card--clean .field input:focus,
@@ -8518,7 +8518,6 @@ body.reels-page-active .sidebar:hover .user-chip {
     height: 100% !important;
     overflow-y: scroll !important;
     scroll-snap-type: y mandatory !important;
-    -webkit-overflow-scrolling: touch !important;
     display: block !important;
     scrollbar-width: none !important;
     -ms-overflow-style: none !important;
@@ -9235,7 +9234,6 @@ body.reels-page-active .sidebar:hover .user-chip {
     scroll-behavior: smooth !important;
     scroll-snap-type: y mandatory !important;
     overscroll-behavior-y: contain;
-    -webkit-overflow-scrolling: touch;
     scrollbar-width: none !important;
     -ms-overflow-style: none !important;
   }
@@ -9398,6 +9396,7 @@ body.reels-page-active .sidebar:hover .user-chip {
     display: -webkit-box !important;
     -webkit-box-orient: vertical !important;
     -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
     overflow: hidden !important;
     color: #fff !important;
     font-size: 0.86rem !important;
@@ -9409,6 +9408,7 @@ body.reels-page-active .sidebar:hover .user-chip {
   body.reels-page-active .reel-left__caption.is-expanded p {
     display: block !important;
     -webkit-line-clamp: none !important;
+    line-clamp: none !important;
     overflow: visible !important;
   }
 
