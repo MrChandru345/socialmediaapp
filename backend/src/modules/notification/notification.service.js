@@ -27,6 +27,14 @@ async function createNotification(payload) {
     .lean();
 
   const formattedNotification = formatNotification(populatedNotification);
+  
+  if (formattedNotification.actor) {
+    const recipientUser = await User.findById(payload.recipient).select("following").lean();
+    formattedNotification.actor.isFollowing = (recipientUser?.following || []).some(
+      id => String(id) === String(formattedNotification.actor.id)
+    );
+  }
+
   emitUserEvent(payload.recipient, "notification:new", formattedNotification);
 
   return formattedNotification;

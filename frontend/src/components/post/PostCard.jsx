@@ -252,15 +252,19 @@ export default function PostCard({ onRemove, post }) {
   return (
     <article className="post-card">
       <header className="post-card__header">
-        <Link className="post-card__author" to={`/profile/${currentPost.author?.username || currentPost.author?.id}`}>
-          <img
-            alt={getPostAuthorName(currentPost)}
-            className="post-card__avatar"
-            src={getPostAvatar(currentPost)}
-          />
+        <div className="post-card__author">
+          <Link to={`/profile/${currentPost.author?.username || currentPost.author?.id}`}>
+            <img
+              alt={getPostAuthorName(currentPost)}
+              className="post-card__avatar"
+              src={getPostAvatar(currentPost)}
+            />
+          </Link>
           <div className="post-card__author-copy">
             <div className="post-card__author-line">
-              <h3>{authorUsername}</h3>
+              <Link to={`/profile/${currentPost.author?.username || currentPost.author?.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <h3>{authorUsername}</h3>
+              </Link>
               <span className="post-card__dot">•</span>
               <span className="post-card__time">{getPostTimestamp(currentPost)}</span>
             </div>
@@ -268,16 +272,16 @@ export default function PostCard({ onRemove, post }) {
               <p>{getPostLocation(currentPost)}</p>
             ) : null}
           </div>
-        </Link>
+        </div>
         <div className="post-card__header-actions">
-          {!isOwnPost ? (
+          {!isOwnPost && !currentPost.author?.isFollowing ? (
             <button
-              className={`post-card__follow-btn ${currentPost.author?.isFollowing ? "is-following" : ""}`}
+              className="post-card__header-follow-btn"
               disabled={isFollowPending}
               onClick={handleFollowAuthor}
               type="button"
             >
-              {isFollowPending ? "..." : currentPost.author?.isFollowing ? "Following" : "Follow"}
+              {isFollowPending ? "..." : "Follow"}
             </button>
           ) : null}
           <button 
