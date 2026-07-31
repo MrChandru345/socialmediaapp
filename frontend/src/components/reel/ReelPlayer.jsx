@@ -175,6 +175,14 @@ export default function ReelPlayer({ reel, onPostClick }) {
 
   const CAPTION_LIMIT = 80;
   const hasLongCaption = reel.caption && reel.caption.length > CAPTION_LIMIT;
+  const authorUsername = reel.author?.username || "creator";
+  const musicName =
+    reel.musicName ||
+    reel.music?.name ||
+    reel.audioName ||
+    reel.audio?.title ||
+    reel.soundName ||
+    `${authorUsername} - Original audio`;
 
   return (
     <article id={`reel-${reel.id}`} className="reel-fullscreen">
@@ -195,7 +203,7 @@ export default function ReelPlayer({ reel, onPostClick }) {
                   className="reel-left__username"
                   onClick={() => navigate(`/profile/${reel.author?.username}`)}
                 >
-                  {reel.author?.username || "creator"}
+                  {authorUsername}
                 </span>
                 {!isOwnReel && (
                   <button
@@ -212,7 +220,7 @@ export default function ReelPlayer({ reel, onPostClick }) {
 
             {/* Caption */}
             {reel.caption && (
-              <div className="reel-left__caption">
+              <div className={`reel-left__caption ${isCaptionExpanded ? "is-expanded" : ""}`}>
                 <p>
                   {isCaptionExpanded || !hasLongCaption
                     ? reel.caption
@@ -228,6 +236,11 @@ export default function ReelPlayer({ reel, onPostClick }) {
                 )}
               </div>
             )}
+
+            <div className="reel-left__music reel-left__music--mobile">
+              <span className="material-symbols-outlined">music_note</span>
+              <span className="reel-left__music-text">{musicName}</span>
+            </div>
           </div>
         </div>
 

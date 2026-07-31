@@ -17,7 +17,7 @@ import CreateStoryModal from "../components/story/CreateStoryModal";
 import { useAuth } from "../hooks/useAuth";
 import { followService } from "../services/followService";
 import { userService } from "../services/userService";
-import { getApiErrorMessage } from "../utils/helpers";
+import { getApiErrorMessage, isReel } from "../utils/helpers";
 
 const initialState = {
   error: "",
@@ -48,6 +48,13 @@ export default function Profile() {
 
   const profileIdentifier = identifier || user?.username || user?.id;
   const isOwnProfile = Boolean(state.profile?.id && user?.id && state.profile.id === user.id);
+
+  useEffect(() => {
+    document.body.classList.add("profile-page-active");
+    return () => {
+      document.body.classList.remove("profile-page-active");
+    };
+  }, []);
 
   useEffect(() => {
     if (!profileIdentifier) return;
@@ -225,6 +232,20 @@ export default function Profile() {
       )}
 
       <div className="profile-page-wrapper" style={{ maxWidth: 'var(--content-max)', margin: '0 auto', padding: '0 1rem', width: '100%' }}>
+        {/* Mobile Profile Header */}
+        <div className="mobile-profile-header">
+          <button className="mobile-header-btn" onClick={() => navigate(-1)}>
+            <span className="material-symbols-outlined">arrow_back</span>
+          </button>
+          <span className="mobile-header-username">{state.profile.username}</span>
+          {isOwnProfile ? (
+            <button className="mobile-header-btn" onClick={() => setIsEditOpen(true)}>
+              <span className="material-symbols-outlined">settings</span>
+            </button>
+          ) : (
+            <div style={{ width: '24px' }} />
+          )}
+        </div>
         {state.error ? (
           <section className="sidebar-card home-banner home-banner--error modern-glass radius-xl" style={{ marginBottom: '2rem' }}>
             <div>
@@ -237,7 +258,10 @@ export default function Profile() {
         ) : null}
 
         <ProfileHeader
-          profile={state.profile}
+          profile={state.profile ? {
+            ...state.profile,
+            postCount: (state.profile.postCount || 0) + (state.reels?.length || 0)
+          } : null}
           isOwnProfile={isOwnProfile}
           isFollowPending={isFollowPending}
           onEditProfile={() => setIsEditOpen(true)}
@@ -255,11 +279,23 @@ export default function Profile() {
             
             <div key={activeTab} className="tab-content-wrapper animate-slide-up">
               <PostGrid 
-                posts={activeTab === 'saved' ? state.savedPosts : (activeTab === 'reels' ? state.reels : state.posts)} 
+                posts={
+                  activeTab === 'saved' 
+                    ? state.savedPosts 
+                    : (activeTab === 'reels' 
+                        ? state.reels 
+                        : [...state.posts, ...state.reels].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()))
+                } 
                 isOwnProfile={isOwnProfile} 
                 onCreatePost={handleCreationChoice} 
                 activeTab={activeTab}
-                onPostClick={(post) => setSelectedPost(post)}
+                onPostClick={(post) => {
+                  if (isReel(post)) {
+                    navigate(`/reels?reelId=${post.id}`);
+                  } else {
+                    setSelectedPost(post);
+                  }
+                }}
                 status={activeTab === 'saved' ? state.savedStatus : 'ready'}
               />
             </div>

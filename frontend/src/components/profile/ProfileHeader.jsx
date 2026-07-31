@@ -26,92 +26,164 @@ export default function ProfileHeader({
   if (!profile) return null;
 
   return (
-    <section className="profile-hero-premium modern-glass radius-xl">
-      {!isOwnProfile && (
-        <button 
-          onClick={() => navigate(-1)} 
-          className="icon-button back-icon-glass" 
-          title="Go Back"
-          style={{ 
-            position: 'absolute', 
-            top: '1.25rem', 
-            left: '1.25rem', 
-            zIndex: 10,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            background: 'var(--surface-low)',
-            color: 'var(--text)',
-            border: '1px solid var(--surface-outline)',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>arrow_back</span>
-        </button>
-      )}
-      
-      <div className="profile-hero-content" style={!isOwnProfile ? { paddingTop: '4.5rem' } : { paddingTop: '2.5rem' }}>
-        <div className="profile-hero-top">
+    <>
+      {/* Desktop Layout */}
+      <section className="profile-hero-premium modern-glass radius-xl profile-desktop-layout">
+        {!isOwnProfile && (
+          <button 
+            onClick={() => navigate(-1)} 
+            className="icon-button back-icon-glass" 
+            title="Go Back"
+            style={{ 
+              position: 'absolute', 
+              top: '1.25rem', 
+              left: '1.25rem', 
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: 'var(--surface-low)',
+              color: 'var(--text)',
+              border: '1px solid var(--surface-outline)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>arrow_back</span>
+          </button>
+        )}
+        
+        <div className="profile-hero-content" style={!isOwnProfile ? { paddingTop: '4.5rem' } : { paddingTop: '2.5rem' }}>
+          <div className="profile-hero-top">
+            <div className="profile-avatar-wrap">
+              <img
+                alt={getDisplayName(profile)}
+                className="profile-avatar premium-avatar"
+                src={getAvatarForUser(profile, getDisplayName(profile))}
+              />
+            </div>
+            
+            <div className="profile-hero-actions">
+              {isOwnProfile ? (
+                <>
+                  <Button onClick={onEditProfile} size="sm" variant="outline" className="radius-full premium-btn">
+                    Edit Profile
+                  </Button>
+                  <Button 
+                    onClick={onCreatePost} 
+                    size="sm" 
+                    variant="primary" 
+                    className="radius-full premium-btn creation-plus-btn"
+                    title="Create new"
+                  >
+                    <span className="material-symbols-outlined">add</span>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    disabled={isFollowPending}
+                    onClick={onToggleFollow}
+                    size="sm"
+                    variant={profile.isFollowing ? "outline" : "primary"}
+                    className="radius-full premium-btn"
+                  >
+                    {isFollowPending ? "..." : profile.isFollowing ? "Following" : "Follow"}
+                  </Button>
+                  <Button onClick={onMessage} size="sm" variant="outline" className="radius-full premium-btn">
+                    Message
+                  </Button>
+                </>
+              )}
+              <Button onClick={onShareProfile} size="sm" variant="ghost" title="Share profile" className="radius-full premium-btn share-btn">
+                <span className="material-symbols-outlined">share</span>
+              </Button>
+            </div>
+          </div>
+          
+          <div className="profile-hero-main">
+            <div className="profile-name-area">
+              <h2 className="premium-username">{profile.username}</h2>
+              <p className="profile-display-name">
+                <strong>{getDisplayName(profile)}</strong> 
+                {profile.role === "admin" && <span className="admin-badge premium-badge">Admin</span>}
+              </p>
+            </div>
+
+            <div className="premium-stats-capsule">
+              <Stats
+                postCount={profile.postCount}
+                followersCount={profile.followersCount}
+                followingCount={profile.followingCount}
+                onFollowersClick={onFollowersClick}
+                onFollowingClick={onFollowingClick}
+              />
+            </div>
+
+            <div className="profile-bio-container">
+              <p className="profile-bio-text">{profile.bio || "No bio shared yet."}</p>
+              
+              <div className="profile-links-row">
+                {profile.location && (
+                  <span className="profile-meta">
+                    <span className="material-symbols-outlined">location_on</span> {profile.location}
+                  </span>
+                )}
+                {websiteHref && (
+                  <a href={websiteHref} rel="noreferrer" target="_blank" className="profile-website">
+                    <span className="material-symbols-outlined">link</span> {profile.website.replace(/^https?:\/\//, '')}
+                  </a>
+                )}
+              </div>
+
+              {profile.mutualFollowers && profile.mutualFollowers.totalCount > 0 && (
+                <div className="mutual-followers-section">
+                  <div className="mutual-avatars">
+                    {profile.mutualFollowers.users.map((u, i) => (
+                      <img 
+                        key={u.id} 
+                        src={getAvatarForUser(u)} 
+                        alt={u.username} 
+                        className="mutual-avatar"
+                        style={{ zIndex: profile.mutualFollowers.users.length - i }}
+                        onClick={() => navigate(`/profile/${u.username}`)}
+                      />
+                    ))}
+                  </div>
+                  <p className="mutual-text">
+                    Followed by <strong>{profile.mutualFollowers.users[0].username}</strong>
+                    {profile.mutualFollowers.totalCount === 2 && (
+                      <> and <strong>{profile.mutualFollowers.users[1].username}</strong></>
+                    )}
+                    {profile.mutualFollowers.totalCount > 2 && (
+                      <>
+                        , <strong>{profile.mutualFollowers.users[1].username}</strong> and 
+                        <strong> {profile.mutualFollowers.totalCount - 2} others</strong>
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Mobile Layout */}
+      <div className="profile-mobile-layout">
+        <div className="profile-mobile-top-row">
           <div className="profile-avatar-wrap">
             <img
               alt={getDisplayName(profile)}
-              className="profile-avatar premium-avatar"
+              className="profile-avatar"
               src={getAvatarForUser(profile, getDisplayName(profile))}
             />
           </div>
-          
-          <div className="profile-hero-actions">
-            {isOwnProfile ? (
-              <>
-                <Button onClick={onEditProfile} size="sm" variant="outline" className="radius-full premium-btn">
-                  Edit Profile
-                </Button>
-                <Button 
-                  onClick={onCreatePost} 
-                  size="sm" 
-                  variant="primary" 
-                  className="radius-full premium-btn creation-plus-btn"
-                  title="Create new"
-                >
-                  <span className="material-symbols-outlined">add</span>
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  disabled={isFollowPending}
-                  onClick={onToggleFollow}
-                  size="sm"
-                  variant={profile.isFollowing ? "outline" : "primary"}
-                  className="radius-full premium-btn"
-                >
-                  {isFollowPending ? "..." : profile.isFollowing ? "Following" : "Follow"}
-                </Button>
-                <Button onClick={onMessage} size="sm" variant="outline" className="radius-full premium-btn">
-                  Message
-                </Button>
-              </>
-            )}
-            <Button onClick={onShareProfile} size="sm" variant="ghost" title="Share profile" className="radius-full premium-btn share-btn">
-              <span className="material-symbols-outlined">share</span>
-            </Button>
-          </div>
-        </div>
-        
-        <div className="profile-hero-main">
-          <div className="profile-name-area">
-            <h2 className="premium-username">{profile.username}</h2>
-            <p className="profile-display-name">
-              <strong>{getDisplayName(profile)}</strong> 
-              {profile.role === "admin" && <span className="admin-badge premium-badge">Admin</span>}
-            </p>
-          </div>
-
-          <div className="premium-stats-capsule">
+          <div className="profile-mobile-stats-col">
+            <h2 className="profile-mobile-username">{profile.username}</h2>
             <Stats
               postCount={profile.postCount}
               followersCount={profile.followersCount}
@@ -119,55 +191,90 @@ export default function ProfileHeader({
               onFollowersClick={onFollowersClick}
               onFollowingClick={onFollowingClick}
             />
-          </div>
-
-          <div className="profile-bio-container">
-            <p className="profile-bio-text">{profile.bio || "No bio shared yet."}</p>
-            
-            <div className="profile-links-row">
-              {profile.location && (
-                <span className="profile-meta">
-                  <span className="material-symbols-outlined">location_on</span> {profile.location}
-                </span>
-              )}
-              {websiteHref && (
-                <a href={websiteHref} rel="noreferrer" target="_blank" className="profile-website">
-                  <span className="material-symbols-outlined">link</span> {profile.website.replace(/^https?:\/\//, '')}
-                </a>
-              )}
-            </div>
-
-            {profile.mutualFollowers && profile.mutualFollowers.totalCount > 0 && (
-              <div className="mutual-followers-section">
-                <div className="mutual-avatars">
-                  {profile.mutualFollowers.users.map((u, i) => (
-                    <img 
-                      key={u.id} 
-                      src={getAvatarForUser(u)} 
-                      alt={u.username} 
-                      className="mutual-avatar"
-                      style={{ zIndex: profile.mutualFollowers.users.length - i }}
-                      onClick={() => navigate(`/profile/${u.username}`)}
-                    />
-                  ))}
-                </div>
-                <p className="mutual-text">
-                  Followed by <strong>{profile.mutualFollowers.users[0].username}</strong>
-                  {profile.mutualFollowers.totalCount === 2 && (
-                    <> and <strong>{profile.mutualFollowers.users[1].username}</strong></>
-                  )}
-                  {profile.mutualFollowers.totalCount > 2 && (
-                    <>
-                      , <strong>{profile.mutualFollowers.users[1].username}</strong> and 
-                      <strong> {profile.mutualFollowers.totalCount - 2} others</strong>
-                    </>
-                  )}
-                </p>
+            {profile.location && (
+              <div className="profile-mobile-location">
+                <span className="material-symbols-outlined">location_on</span>
+                <span>{profile.location}</span>
               </div>
             )}
           </div>
         </div>
+
+        <div className="profile-mobile-bio-section">
+          <strong className="profile-mobile-display-name">{getDisplayName(profile)}</strong>
+          {profile.role === "admin" && <span className="profile-mobile-role">Admin</span>}
+          <p className="profile-mobile-bio-text">{profile.bio || "No bio shared yet."}</p>
+          {websiteHref && (
+            <a href={websiteHref} rel="noreferrer" target="_blank" className="profile-mobile-website">
+              <span className="material-symbols-outlined">link</span>
+              <span>{profile.website.replace(/^https?:\/\//, '')}</span>
+            </a>
+          )}
+
+          {profile.mutualFollowers && profile.mutualFollowers.totalCount > 0 && (
+            <div className="mutual-followers-section" style={{ marginTop: '8px', padding: 0, border: 'none', background: 'transparent' }}>
+              <div className="mutual-avatars">
+                {profile.mutualFollowers.users.map((u, i) => (
+                  <img 
+                    key={u.id} 
+                    src={getAvatarForUser(u)} 
+                    alt={u.username} 
+                    className="mutual-avatar"
+                    style={{ zIndex: profile.mutualFollowers.users.length - i }}
+                    onClick={() => navigate(`/profile/${u.username}`)}
+                  />
+                ))}
+              </div>
+              <p className="mutual-text" style={{ fontSize: '11px', color: 'var(--text-soft)' }}>
+                Followed by <strong>{profile.mutualFollowers.users[0].username}</strong>
+                {profile.mutualFollowers.totalCount === 2 && (
+                  <> and <strong>{profile.mutualFollowers.users[1].username}</strong></>
+                )}
+                {profile.mutualFollowers.totalCount > 2 && (
+                  <>
+                    , <strong>{profile.mutualFollowers.users[1].username}</strong> and 
+                    <strong> {profile.mutualFollowers.totalCount - 2} others</strong>
+                  </>
+                )}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="profile-mobile-actions-row">
+          {isOwnProfile ? (
+            <>
+              <Button onClick={onEditProfile} size="sm" variant="outline" className="profile-mobile-btn">
+                Edit Profile
+              </Button>
+              <Button onClick={onShareProfile} size="sm" variant="outline" className="profile-mobile-btn-icon">
+                <span className="material-symbols-outlined">share</span>
+              </Button>
+              <Button onClick={onCreatePost} size="sm" variant="primary" className="profile-mobile-btn-icon">
+                <span className="material-symbols-outlined">add</span>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                disabled={isFollowPending}
+                onClick={onToggleFollow}
+                size="sm"
+                variant={profile.isFollowing ? "outline" : "primary"}
+                className="profile-mobile-btn"
+              >
+                {isFollowPending ? "..." : profile.isFollowing ? "Following" : "Follow"}
+              </Button>
+              <Button onClick={onMessage} size="sm" variant="outline" className="profile-mobile-btn">
+                Message
+              </Button>
+              <Button onClick={onShareProfile} size="sm" variant="outline" className="profile-mobile-btn-icon">
+                <span className="material-symbols-outlined">share</span>
+              </Button>
+            </>
+          )}
+        </div>
       </div>
-    </section>
+    </>
   );
 }

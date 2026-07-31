@@ -8,7 +8,6 @@ export default function Modal({ children, onClose, open, title }) {
       <div className="modal-card" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
         <div className="modal-header">
           <div>
-            <p className="eyebrow">Curator overlay</p>
             <h3>{title}</h3>
           </div>
           <button className="icon-button" onClick={onClose} type="button">

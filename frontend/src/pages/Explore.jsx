@@ -53,7 +53,11 @@ export default function Explore() {
   }, [activeQuery]);
 
   useEffect(() => {
+    document.body.classList.add("explore-page-active");
     loadExplore();
+    return () => {
+      document.body.classList.remove("explore-page-active");
+    };
   }, []);
 
   useEffect(() => {
