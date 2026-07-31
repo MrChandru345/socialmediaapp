@@ -288,7 +288,7 @@ export default function Home() {
                       </div>
                     </Link>
                     <button
-                      className="mini-action"
+                      className="mini-action mini-action--capsule"
                       disabled={pendingFollowIds.includes(suggestion.id)}
                       onClick={() => handleFollow(suggestion.id)}
                       type="button"

@@ -1,10 +1,10 @@
-# 🚀 Full-Stack Real-Time Social Media Platform (Instagram Clone)
+# 🚀 Full-Stack Real-Time Social Media Platform
 
-An advanced, production-ready full-stack social media application simulating modern platforms like Instagram. Built using the **MERN Stack (MongoDB, Express, React, Node.js)** and integrated with **WebSockets (Socket.io)** for instantaneous, real-time messaging and notifications.
+An advanced, production-ready full-stack social media application. Built using the **MERN Stack (MongoDB, Express, React, Node.js)** and integrated with **WebSockets (Socket.io)** for instantaneous, real-time messaging and notifications.
 
 ---
 
-## 🌟 Key Engineering Achievements (Resume Highlights)
+## 🌟 Key Engineering Achievements
 
 ### ✂️ Professional Client-Side Image Cropping Editor
 * **Challenge**: Uploading raw, uncompressed high-resolution images consumes massive backend bandwidth, slows page loads, and causes unaligned layout grids.
