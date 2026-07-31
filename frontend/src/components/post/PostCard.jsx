@@ -43,6 +43,9 @@ export default function PostCard({ onRemove, post }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
+  
+  const [imgAspectRatio, setImgAspectRatio] = useState(null);
+  const [videoAspectRatio, setVideoAspectRatio] = useState(null);
 
   // Video autoplay & controls state
   const navigate = useNavigate();
@@ -55,6 +58,8 @@ export default function PostCard({ onRemove, post }) {
     setCurrentPost(createOptimisticPost(post));
     setError("");
     setIsCaptionExpanded(false);
+    setImgAspectRatio(null);
+    setVideoAspectRatio(null);
   }, [post]);
 
   useEffect(() => {
@@ -296,7 +301,10 @@ export default function PostCard({ onRemove, post }) {
       </header>
 
       {media && isVideoMedia(media) ? (
-        <div className={`post-card__video-wrapper ${isPlaying ? "is-playing" : "is-paused"}`}>
+        <div 
+          className={`post-card__video-wrapper ${isPlaying ? "is-playing" : "is-paused"}`}
+          style={!isPostReel && videoAspectRatio ? { aspectRatio: videoAspectRatio.toString() } : undefined}
+        >
           <video
             ref={videoRef}
             className={isPostReel ? "post-card__cover post-card__cover--reel" : "post-card__cover"}
@@ -306,6 +314,12 @@ export default function PostCard({ onRemove, post }) {
             playsInline
             muted={isMuted}
             onClick={handleVideoClick}
+            onLoadedMetadata={(e) => {
+              const { videoWidth, videoHeight } = e.target;
+              if (videoWidth && videoHeight) {
+                setVideoAspectRatio(videoWidth / videoHeight);
+              }
+            }}
           />
           
           <button className="post-card__video-center-btn" onClick={handleVideoClick} type="button" aria-label={isPlaying ? "Pause" : "Play"}>
@@ -334,6 +348,12 @@ export default function PostCard({ onRemove, post }) {
           alt={getPostCaption(currentPost) || getPostAuthorName(currentPost)}
           className="post-card__cover"
           src={media.url}
+          onLoad={(e) => {
+            const { naturalWidth, naturalHeight } = e.target;
+            if (naturalWidth && naturalHeight) {
+              setImgAspectRatio(naturalWidth / naturalHeight);
+            }
+          }}
           onClick={() => {
             if (isPostReel) {
               navigate(`/reels?reelId=${currentPost.id}`);
@@ -341,7 +361,10 @@ export default function PostCard({ onRemove, post }) {
               setIsModalOpen(true);
             }
           }}
-          style={{ cursor: 'pointer' }}
+          style={{ 
+            cursor: 'pointer',
+            aspectRatio: imgAspectRatio ? imgAspectRatio.toString() : 'auto'
+          }}
         />
       ) : null}
 

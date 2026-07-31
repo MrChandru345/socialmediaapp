@@ -1095,10 +1095,11 @@ strong {
 
 .post-card__cover {
   width: 100%;
-  aspect-ratio: 1 / 1;
-  object-fit: cover;
+  height: auto;
+  object-fit: contain;
   background: var(--surface-low);
   cursor: pointer;
+  display: block;
 }
 
 .post-card__cover--reel {
@@ -1109,7 +1110,6 @@ strong {
 .post-card__video-wrapper {
   position: relative;
   width: 100%;
-  aspect-ratio: 1 / 1;
   background: #000;
   overflow: hidden;
 }
