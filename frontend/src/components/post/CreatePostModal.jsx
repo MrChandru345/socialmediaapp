@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Cropper from "react-easy-crop";
 
 import { postService } from "../../services/postService";
 import { getApiErrorMessage, hasValue } from "../../utils/helpers";
@@ -12,60 +13,52 @@ const initialState = {
   visibility: "public"
 };
 
-function clamp(val, min, max) {
-  return Math.max(min, Math.min(max, val));
+function createImage(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", (error) => reject(error));
+    image.setAttribute("crossOrigin", "anonymous");
+    image.src = url;
+  });
 }
 
-function cropImageToSquareFile(file, zoom, offset, containerWidth, cropMode) {
+async function getCroppedImg(imageSrc, pixelCrop, fileName) {
+  const image = await createImage(imageSrc);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    throw new Error("No 2d context");
+  }
+
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+
+  ctx.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
+  );
+
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      
-      // Target cropped size is based on cropMode
-      if (cropMode === 'square') {
-        const destSize = Math.min(img.width, img.height);
-        canvas.width = destSize;
-        canvas.height = destSize;
-        const ctx = canvas.getContext("2d");
-
-        const scaleToFit = containerWidth / Math.min(img.width, img.height);
-        const displayedWidth = img.width * scaleToFit;
-        const displayedHeight = img.height * scaleToFit;
-
-        const canvasScale = destSize / containerWidth;
-
-        const drawWidth = displayedWidth * canvasScale * zoom;
-        const drawHeight = displayedHeight * canvasScale * zoom;
-
-        const drawX = destSize / 2 + offset.x * canvasScale - drawWidth / 2;
-        const drawY = destSize / 2 + offset.y * canvasScale - drawHeight / 2;
-
-        ctx.fillStyle = "#000";
-        ctx.fillRect(0, 0, destSize, destSize);
-        ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-      } else {
-        // Original fit mode: keep natural proportions
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0);
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("Canvas is empty"));
+        return;
       }
-
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const croppedFile = new File([blob], file.name, {
-            type: file.type,
-            lastModified: Date.now()
-          });
-          resolve(croppedFile);
-        } else {
-          reject(new Error("Canvas toBlob failed"));
-        }
-      }, file.type);
-    };
-    img.onerror = () => reject(new Error("Image load failed"));
-    img.src = URL.createObjectURL(file);
+      const croppedFile = new File([blob], fileName, {
+        type: "image/jpeg",
+        lastModified: Date.now()
+      });
+      resolve(croppedFile);
+    }, "image/jpeg", 0.95);
   });
 }
 
@@ -79,15 +72,13 @@ export default function CreatePostModal({ onClose, onCreated, open }) {
   const [croppedPreviewUrl, setCroppedPreviewUrl] = useState("");
   const [croppedFile, setCroppedFile] = useState(null);
 
-  const [cropMode, setCropMode] = useState("square");
-  const [zoom] = useState(1); // Zoom fixed to 1 since there is no slider now
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [displayedSize, setDisplayedSize] = useState({ width: 0, height: 0 });
-
-  const containerWidth = 350;
+  // react-easy-crop states
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [aspect, setAspect] = useState(1); // Default to 1:1
+  const [activeAspectName, setActiveAspectName] = useState("1:1");
+  const [originalAspect, setOriginalAspect] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
   useEffect(() => {
     if (!form.file) {
@@ -115,9 +106,11 @@ export default function CreatePostModal({ onClose, onCreated, open }) {
     setForm(initialState);
     setError("");
     setStep("select");
-    setOffset({ x: 0, y: 0 });
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setAspect(1);
+    setActiveAspectName("1:1");
     setCroppedFile(null);
-    setCropMode("square");
     if (croppedPreviewUrl) {
       URL.revokeObjectURL(croppedPreviewUrl);
       setCroppedPreviewUrl("");
@@ -133,81 +126,31 @@ export default function CreatePostModal({ onClose, onCreated, open }) {
     onClose?.();
   }
 
-  const handleImageLoad = (e) => {
-    const { naturalWidth, naturalHeight } = e.target;
-    setDimensions({ width: naturalWidth, height: naturalHeight });
-    
-    // Fit dimension calculations
-    if (naturalHeight > naturalWidth) {
-      const w = containerWidth;
-      const h = containerWidth * (naturalHeight / naturalWidth);
-      setDisplayedSize({ width: w, height: h });
-    } else {
-      const h = containerWidth;
-      const w = containerWidth * (naturalWidth / naturalHeight);
-      setDisplayedSize({ width: w, height: h });
+  const onCropComplete = (croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
+
+  const selectAspect = (name) => {
+    setActiveAspectName(name);
+    if (name === "original") {
+      setAspect(originalAspect);
+    } else if (name === "1:1") {
+      setAspect(1);
+    } else if (name === "4:5") {
+      setAspect(4 / 5);
+    } else if (name === "1.91:1") {
+      setAspect(1.91);
     }
-  };
-
-  const handleMouseDown = (e) => {
-    e.preventDefault();
-    if (cropMode !== 'square') return;
-    setIsDragging(true);
-    setDragStart({
-      x: e.clientX - offset.x,
-      y: e.clientY - offset.y
-    });
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isDragging || cropMode !== 'square') return;
-    
-    const rawX = e.clientX - dragStart.x;
-    const rawY = e.clientY - dragStart.y;
-    
-    const maxX = Math.max(0, (displayedSize.width * zoom - containerWidth) / 2);
-    const maxY = Math.max(0, (displayedSize.height * zoom - containerWidth) / 2);
-    
-    setOffset({
-      x: clamp(rawX, -maxX, maxX),
-      y: clamp(rawY, -maxY, maxY)
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleTouchStart = (e) => {
-    if (cropMode !== 'square') return;
-    const touch = e.touches[0];
-    setIsDragging(true);
-    setDragStart({
-      x: touch.clientX - offset.x,
-      y: touch.clientY - offset.y
-    });
-  };
-
-  const handleTouchMove = (e) => {
-    if (!isDragging || cropMode !== 'square') return;
-    const touch = e.touches[0];
-    const rawX = touch.clientX - dragStart.x;
-    const rawY = touch.clientY - dragStart.y;
-    
-    const maxX = Math.max(0, (displayedSize.width * zoom - containerWidth) / 2);
-    const maxY = Math.max(0, (displayedSize.height * zoom - containerWidth) / 2);
-    
-    setOffset({
-      x: clamp(rawX, -maxX, maxX),
-      y: clamp(rawY, -maxY, maxY)
-    });
   };
 
   const handleNextStep = async () => {
     setIsSubmitting(true);
     setError("");
     try {
-      const cropped = await cropImageToSquareFile(form.file, zoom, offset, containerWidth, cropMode);
+      if (!croppedAreaPixels) {
+        throw new Error("No crop area selected.");
+      }
+      const cropped = await getCroppedImg(previewUrl, croppedAreaPixels, form.file.name);
       setCroppedFile(cropped);
       
       if (croppedPreviewUrl) {
@@ -253,9 +196,9 @@ export default function CreatePostModal({ onClose, onCreated, open }) {
   }
 
   return (
-    <Modal onClose={handleClose} open={open} title={step === 'crop' ? 'Crop' : (step === 'details' ? 'Create new post' : 'Create new post')}>
+    <Modal onClose={handleClose} open={open} title={step === "crop" ? "Crop" : "Create new post"}>
       <form className="composer-form instagram-composer" onSubmit={handleSubmit}>
-        {step === 'select' && (
+        {step === "select" && (
           <div className="instagram-upload-zone">
             <span className="material-symbols-outlined upload-icon">photo_library</span>
             <h3>Drag photos and videos here</h3>
@@ -275,7 +218,15 @@ export default function CreatePostModal({ onClose, onCreated, open }) {
 
                   if (nextFile) {
                     if (nextType === "image") {
-                      setStep("crop");
+                      const img = new Image();
+                      img.onload = () => {
+                        const originalRatio = img.naturalWidth / img.naturalHeight;
+                        setOriginalAspect(originalRatio);
+                        setAspect(1);
+                        setActiveAspectName("1:1");
+                        setStep("crop");
+                      };
+                      img.src = URL.createObjectURL(nextFile);
                     } else {
                       setStep("details");
                     }
@@ -289,83 +240,87 @@ export default function CreatePostModal({ onClose, onCreated, open }) {
           </div>
         )}
 
-        {step === 'crop' && (
-          <div className="crop-step-layout" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+        {step === "crop" && (
+          <div className="crop-step-layout">
             <div className="crop-custom-header">
               <button type="button" className="crop-header-back-btn" onClick={resetForm}>
-                <span className="material-symbols-outlined">arrow_back</span>
+                Cancel
               </button>
-              <span className="crop-header-title">Crop</span>
-              <button type="button" className="crop-header-next-btn" onClick={handleNextStep} disabled={isSubmitting}>
+              <span className="crop-header-title">Crop Image</span>
+              <button 
+                type="button" 
+                className="crop-header-next-btn" 
+                onClick={handleNextStep} 
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? "..." : "Next"}
               </button>
             </div>
 
-            <div className="crop-preview-container" style={{ padding: '24px 0', background: '#121212', display: 'flex', justifyContent: 'center', width: '100%' }}>
-              <div 
-                className="crop-box"
-                style={{
-                  width: `${containerWidth}px`,
-                  height: `${containerWidth}px`,
-                  position: 'relative',
-                  overflow: 'hidden',
-                  background: '#000',
-                  borderRadius: '12px',
-                  cursor: cropMode === 'square' ? (isDragging ? 'grabbing' : 'grab') : 'default',
-                  touchAction: 'none',
-                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
-                }}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleMouseUp}
-              >
-                <img
-                  src={previewUrl}
-                  alt="Crop preview"
-                  onLoad={handleImageLoad}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: cropMode === 'square' ? 'cover' : 'contain',
-                    transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
-                    transformOrigin: 'center center',
-                    pointerEvents: 'none',
-                    userSelect: 'none'
-                  }}
+            <div className="cropper-container-wrapper">
+              <div className="cropper-inner-container">
+                <Cropper
+                  image={previewUrl}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={aspect}
+                  onCropChange={setCrop}
+                  onCropComplete={onCropComplete}
+                  onZoomChange={setZoom}
+                  restrictPosition={true}
                 />
+              </div>
+            </div>
 
-                {/* Grid Overlay */}
-                <div className="crop-grid-overlay">
-                  <div className="crop-grid-line crop-grid-line-h1"></div>
-                  <div className="crop-grid-line crop-grid-line-h2"></div>
-                  <div className="crop-grid-line crop-grid-line-v1"></div>
-                  <div className="crop-grid-line crop-grid-line-v2"></div>
-                </div>
-
-                {/* Brackets aspect toggle button in bottom left */}
+            <div className="cropper-controls-panel">
+              <div className="aspect-ratio-selector">
                 <button
                   type="button"
-                  className="crop-mode-toggle-btn"
-                  onClick={() => {
-                    setCropMode(prev => prev === "square" ? "original" : "square");
-                    setOffset({ x: 0, y: 0 });
-                  }}
-                  title={cropMode === "square" ? "Show full image size" : "Crop to square (1:1)"}
+                  className={`aspect-btn ${activeAspectName === "original" ? "active" : ""}`}
+                  onClick={() => selectAspect("original")}
                 >
-                  <span className="material-symbols-outlined">
-                    {cropMode === "square" ? "aspect_ratio" : "crop_free"}
-                  </span>
+                  Original
                 </button>
+                <button
+                  type="button"
+                  className={`aspect-btn ${activeAspectName === "1:1" ? "active" : ""}`}
+                  onClick={() => selectAspect("1:1")}
+                >
+                  1:1
+                </button>
+                <button
+                  type="button"
+                  className={`aspect-btn ${activeAspectName === "4:5" ? "active" : ""}`}
+                  onClick={() => selectAspect("4:5")}
+                >
+                  4:5
+                </button>
+                <button
+                  type="button"
+                  className={`aspect-btn ${activeAspectName === "1.91:1" ? "active" : ""}`}
+                  onClick={() => selectAspect("1.91:1")}
+                >
+                  1.91:1
+                </button>
+              </div>
+
+              <div className="zoom-slider-container">
+                <span className="zoom-label">Zoom</span>
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.05"
+                  value={zoom}
+                  onChange={(e) => setZoom(parseFloat(e.target.value))}
+                  className="zoom-slider-input"
+                />
               </div>
             </div>
           </div>
         )}
 
-        {step === 'details' && (
+        {step === "details" && (
           <div className="composer-preview-split">
             <div className="composer-preview-media">
               {form.mediaType === "video" ? (
@@ -412,21 +367,21 @@ export default function CreatePostModal({ onClose, onCreated, open }) {
                   type="button" 
                   onClick={() => setStep("crop")}
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--primary)',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    fontWeight: '600',
+                    background: "none",
+                    border: "none",
+                    color: "var(--primary)",
+                    cursor: "pointer",
+                    fontSize: "0.85rem",
+                    fontWeight: "600",
                     padding: 0,
-                    marginTop: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    alignSelf: 'flex-start'
+                    marginTop: "12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    alignSelf: "flex-start"
                   }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>crop</span> Re-crop image
+                  <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>crop</span> Re-crop image
                 </button>
               )}
             </div>
@@ -435,7 +390,7 @@ export default function CreatePostModal({ onClose, onCreated, open }) {
 
         {error ? <p className="form-error">{error}</p> : null}
 
-        {step === 'details' && (
+        {step === "details" && (
           <div className="composer-actions">
             <Button disabled={isSubmitting} type="submit" variant="primary">
               {isSubmitting ? "Sharing..." : "Share"}
