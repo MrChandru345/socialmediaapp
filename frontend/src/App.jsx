@@ -8,11 +8,10 @@ import Chat from "./pages/Chat";
 import Explore from "./pages/Explore";
 import Home from "./pages/Home";
 import ForgotPassword from "./pages/auth/ForgotPassword";
-import Login from "./pages/auth/Login";
+import AuthPage from "./components/auth/AuthPage";
 import Profile from "./pages/Profile";
 import Reels from "./pages/Reels";
 import ResetPassword from "./pages/auth/ResetPassword";
-import Signup from "./pages/auth/Signup";
 import VerifyEmail from "./pages/auth/VerifyEmail";
 
 function ProtectedPage({ children }) {
@@ -53,7 +52,7 @@ export default function App() {
         path="/login"
         element={
           <PublicPage>
-            <Login />
+            <AuthPage initialTab="signin" />
           </PublicPage>
         }
       />
@@ -61,7 +60,7 @@ export default function App() {
         path="/signup"
         element={
           <PublicPage>
-            <Signup />
+            <AuthPage initialTab="signup" />
           </PublicPage>
         }
       />
