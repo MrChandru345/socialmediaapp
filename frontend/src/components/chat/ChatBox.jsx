@@ -82,7 +82,9 @@ export default function ChatBox() {
   const mediaRecorderRef = useRef(null);
   const timerIntervalRef = useRef(null);
 
-  const activeConversation = conversations.find((c) => c.otherUser.id === activeConversationId);
+  const activeConversation = conversations.find((c) => 
+    c?.otherUser && String(c.otherUser.id || c.otherUser._id) === String(activeConversationId)
+  );
 
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
@@ -104,7 +106,7 @@ export default function ChatBox() {
           userService.getFollowing().catch(() => [])
         ]);
 
-        const convoItems = [...(chatData.items || [])];
+        const convoItems = (chatData.items || []).filter(c => Boolean(c && c.otherUser));
         const existingIds = new Set(convoItems.map((c) => String(c.otherUser.id || c.otherUser._id)));
 
         // Only add requested user from Profile if they aren't already in the message list
@@ -746,8 +748,10 @@ export default function ChatBox() {
   }
 
   const filteredConversations = conversations.filter(c => 
-    c.otherUser.username.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.otherUser.fullName.toLowerCase().includes(searchQuery.toLowerCase())
+    c?.otherUser && (
+      (c.otherUser.username || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+      (c.otherUser.fullName || "").toLowerCase().includes(searchQuery.toLowerCase())
+    )
   );
 
   const layoutClass = activeConversationId ? 'chat-layout--thread-open' : 'chat-layout--inbox';
@@ -898,67 +902,73 @@ export default function ChatBox() {
               <p>No conversations found</p>
             </div>
           ) : (
-            filteredConversations.map((c) => (
-              <div 
-                className={
-                  c.otherUser.id === activeConversationId
-                    ? "conversation-card conversation-card--active"
-                    : "conversation-card"
-                }
-                key={c.otherUser.id}
-                onClick={() => setActiveConversationId(c.otherUser.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setActiveConversationId(c.otherUser.id);
+            filteredConversations.map((c) => {
+              const otherId = String(c.otherUser?.id || c.otherUser?._id || "");
+              const isActive = String(activeConversationId || "") === otherId;
+              const isMenuOpen = String(showConvMenu || "") === otherId;
+
+              return (
+                <div 
+                  className={
+                    isActive
+                      ? "conversation-card conversation-card--active"
+                      : "conversation-card"
                   }
-                }}
-              >
-                <div className="conversation-card__avatar">
-                  <img alt={c.otherUser.fullName} src={getAvatarForUser(c.otherUser)} />
-                  {c.otherUser.isOnline && <span className="conversation-card__status" />}
-                </div>
-                <div className="conversation-card__body">
-                  <div className="conversation-card__name-row">
-                    <strong>{c.otherUser.fullName}</strong>
+                  key={otherId || c.roomId}
+                  onClick={() => setActiveConversationId(otherId)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setActiveConversationId(otherId);
+                    }
+                  }}
+                >
+                  <div className="conversation-card__avatar">
+                    <img alt={c.otherUser?.fullName || c.otherUser?.username} src={getAvatarForUser(c.otherUser)} />
+                    {c.otherUser?.isOnline && <span className="conversation-card__status" />}
                   </div>
-                  <div className={`conversation-card__preview ${c.unreadCount > 0 ? "conversation-card__preview--unread" : ""}`}>
-                    <span>
-                      {c.lastMessage.attachments?.length > 0 ? "Sent an attachment" : (c.lastMessage.body || "Say hi!")}
-                    </span>
-                    <span className="preview-dot">•</span>
-                    <span className="preview-time">
-                      {getMessageStatusLabel(c.lastMessage, c.lastMessage?.sender?.id === user.id)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="conversation-card__extras" ref={showConvMenu === c.otherUser.id ? convMenuRef : null}>
-                   <button 
-                    className="conversation-card__more-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowConvMenu(showConvMenu === c.otherUser.id ? null : c.otherUser.id);
-                    }}
-                    type="button"
-                  >
-                    <span className="material-symbols-outlined">more_horiz</span>
-                  </button>
-                  {showConvMenu === c.otherUser.id && (
-                    <div className="conversation-card__menu animate-in">
-                      <button className="conv-menu-item danger" onClick={(e) => { e.stopPropagation(); setDeletingConversationId(c.otherUser.id); setShowConvMenu(null); }}>
-                        <span className="material-symbols-outlined">delete_forever</span>
-                        Delete Chat
-                      </button>
+                  <div className="conversation-card__body">
+                    <div className="conversation-card__name-row">
+                      <strong>{c.otherUser?.fullName || c.otherUser?.username || "User"}</strong>
                     </div>
-                  )}
-                </div>
+                    <div className={`conversation-card__preview ${c.unreadCount > 0 ? "conversation-card__preview--unread" : ""}`}>
+                      <span>
+                        {c.lastMessage?.attachments?.length > 0 ? "Sent an attachment" : (c.lastMessage?.body || "Say hi!")}
+                      </span>
+                      <span className="preview-dot">•</span>
+                      <span className="preview-time">
+                        {getMessageStatusLabel(c.lastMessage, String(c.lastMessage?.sender?.id || c.lastMessage?.sender?._id) === String(user?.id || user?._id))}
+                      </span>
+                    </div>
+                  </div>
 
-                {c.unreadCount > 0 && <span className="unread-badge">{c.unreadCount}</span>}
-              </div>
-            ))
+                  <div className="conversation-card__extras" ref={isMenuOpen ? convMenuRef : null}>
+                    <button 
+                      className="conversation-card__more-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowConvMenu(isMenuOpen ? null : otherId);
+                      }}
+                      type="button"
+                    >
+                      <span className="material-symbols-outlined">more_horiz</span>
+                    </button>
+                    {isMenuOpen && (
+                      <div className="conversation-card__menu animate-in">
+                        <button className="conv-menu-item danger" onClick={(e) => { e.stopPropagation(); setDeletingConversationId(otherId); setShowConvMenu(null); }}>
+                          <span className="material-symbols-outlined">delete_forever</span>
+                          Delete Chat
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {c.unreadCount > 0 && <span className="unread-badge">{c.unreadCount}</span>}
+                </div>
+              );
+            })
           )}
         </div>
       </div>

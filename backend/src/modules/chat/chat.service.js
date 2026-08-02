@@ -171,12 +171,14 @@ async function listConversations(userId) {
     }
   ]);
 
-  const items = conversations.map((conv) => ({
-    roomId: conv.roomId,
-    otherUser: formatChatUser(conv.otherUser),
-    lastMessage: formatMessage(conv.lastMessage),
-    unreadCount: conv.unreadCount
-  }));
+  const items = conversations
+    .filter((conv) => Boolean(conv && conv.otherUser))
+    .map((conv) => ({
+      roomId: conv.roomId,
+      otherUser: formatChatUser(conv.otherUser),
+      lastMessage: formatMessage(conv.lastMessage),
+      unreadCount: conv.unreadCount
+    }));
 
   return {
     items,

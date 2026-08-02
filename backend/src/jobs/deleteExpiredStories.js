@@ -1,4 +1,4 @@
-﻿const logger = require("../utils/logger");
+const logger = require("../utils/logger");
 const { deleteExpiredStories } = require("../modules/story/story.service");
 
 function startDeleteExpiredStoriesJob(intervalMs = 30 * 60 * 1000) {
