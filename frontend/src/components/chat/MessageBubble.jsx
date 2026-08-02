@@ -164,7 +164,7 @@ export default function MessageBubble({
 
         {message.sharedPost && (
           <div className="message-shared-post-wrapper">
-            {typeof message.sharedPost === "object" && message.sharedPost.id ? (
+            {typeof message.sharedPost === "object" && (message.sharedPost.id || message.sharedPost._id) ? (
               <div 
                 className={`message-shared-post-card ${incoming ? "message-shared-post-card--incoming" : "message-shared-post-card--outgoing"}`}
                 onClick={() => onPostClick?.(message.sharedPost)}
@@ -182,24 +182,31 @@ export default function MessageBubble({
                     </span>
                   </div>
 
-                  {/* Post Image */}
+                  {/* Post Image / Media */}
                   {(() => {
-                    const media = Array.isArray(message.sharedPost.media) ? message.sharedPost.media[0] : message.sharedPost.media;
-                    if (!media) return (
+                    const postObj = message.sharedPost;
+                    const mediaItem = Array.isArray(postObj.media) ? postObj.media[0] : (postObj.media || postObj.video);
+                    const mediaUrl = typeof mediaItem === "string" ? mediaItem : (mediaItem?.url || postObj.url || "");
+                    
+                    if (!mediaUrl) return (
                       <div className="shared-post-card__no-media">
                         <span className="material-symbols-outlined">image</span>
                       </div>
                     );
 
+                    const isVid = (mediaItem && typeof mediaItem === "object" && mediaItem.type === "video") ||
+                      mediaUrl.match(/\.(mp4|webm|ogg)$/i) ||
+                      postObj.isReel;
+
                     return (
                       <div className="shared-post-card__media" style={{ cursor: 'pointer' }}>
-                        {media.type === "video" ? (
+                        {isVid ? (
                           <div style={{ position: 'relative' }}>
-                            <video src={media.url} className="shared-post-card__img" />
+                            <video src={mediaUrl} className="shared-post-card__img" />
                             <span className="material-symbols-outlined shared-post-card__play">play_circle</span>
                           </div>
                         ) : (
-                          <img src={media.url} alt="Post" className="shared-post-card__img" />
+                          <img src={mediaUrl} alt="Post" className="shared-post-card__img" />
                         )}
                       </div>
                     );

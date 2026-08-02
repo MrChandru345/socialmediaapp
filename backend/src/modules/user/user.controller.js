@@ -1,5 +1,6 @@
 const { asyncHandler } = require("../../middleware/error.middleware");
 const {
+  deleteUserAccount,
   getProfile,
   getProfilePosts,
   getSuggestions,
@@ -68,7 +69,16 @@ const listMySavedPosts = asyncHandler(async (req, res) => {
   res.json({ success: true, data: posts });
 });
 
+const deleteMyAccount = asyncHandler(async (req, res) => {
+  await deleteUserAccount(req.user._id);
+  res.json({
+    success: true,
+    message: "Your account and all associated data have been permanently deleted."
+  });
+});
+
 module.exports = {
+  deleteMyAccount,
   getUserProfile,
   getUserProfilePosts,
   listSuggestions,

@@ -91,24 +91,28 @@ async function deleteComment(userId, commentId, role) {
     throw new AppError(404, "Comment not found");
   }
 
-  const isOwner = String(comment.author) === String(userId);
+  // Find post or reel to check if userId is post author
+  const Reel = require("../reel/reel.model");
+  let parent = await Post.findById(comment.post).select("author commentsCount");
+  if (!parent) {
+    parent = await Reel.findById(comment.post).select("author commentsCount");
+  }
+
+  const isCommentOwner = String(comment.author) === String(userId);
+  const isPostAuthor = parent && String(parent.author) === String(userId);
   const isAdmin = role === "admin";
 
-  if (!isOwner && !isAdmin) {
+  if (!isCommentOwner && !isPostAuthor && !isAdmin) {
     throw new AppError(403, "You do not have permission to delete this comment");
   }
 
-  const Reel = require("../reel/reel.model");
-  await Promise.all([
-    Comment.deleteOne({ _id: commentId }),
-    Post.findByIdAndUpdate(comment.post, { $inc: { commentsCount: -1 } }),
-    Reel.findByIdAndUpdate(comment.post, { $inc: { commentsCount: -1 } })
-  ]);
+  if (parent) {
+    parent.commentsCount = Math.max((parent.commentsCount || 1) - 1, 0);
+    await parent.save();
+  }
 
-  return {
-    deleted: true,
-    commentId
-  };
+  await comment.deleteOne();
+  return { id: String(commentId) };
 }
 
 async function toggleLike(commentId, userId) {

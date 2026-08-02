@@ -70,6 +70,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    isPrivate: {
+      type: Boolean,
+      default: false
+    },
     status: {
       type: String,
       enum: ["active", "suspended"],
@@ -82,6 +86,18 @@ const userSchema = new mongoose.Schema(
       }
     ],
     following: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+      }
+    ],
+    followRequests: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+      }
+    ],
+    requestedFollows: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"

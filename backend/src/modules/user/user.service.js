@@ -12,16 +12,22 @@ const {
 
 function sanitizeProfile(user, viewerId, postCount) {
   const sanitized = sanitizeUser(user);
+  const isFollowing = viewerId
+    ? user.followers?.some((entry) => String(entry) === String(viewerId))
+    : false;
+  const isRequested = viewerId
+    ? user.followRequests?.some((entry) => String(entry) === String(viewerId))
+    : false;
 
   return {
     ...sanitized,
+    isPrivate: Boolean(user.isPrivate),
     followersCount: user.followers?.length || 0,
     followingCount: user.following?.length || 0,
     postCount,
     isOnline: getOnlineUsers().includes(String(user._id)),
-    isFollowing: viewerId
-      ? user.followers?.some((entry) => String(entry) === String(viewerId))
-      : false
+    isFollowing,
+    isRequested
   };
 }
 
@@ -125,6 +131,14 @@ async function getProfilePosts(identifier, viewerId, query) {
   const isFollower = viewerId
     ? user.followers?.some((entry) => String(entry) === String(viewerId))
     : false;
+
+  if (user.isPrivate && !isOwner && !isFollower) {
+    return {
+      items: [],
+      meta: buildPaginationMeta(page, limit, 0)
+    };
+  }
+
   const filter = {
     author: user._id
   };
@@ -201,6 +215,10 @@ async function updateProfile(userId, payload, file) {
     user.location = payload.location.trim();
   }
 
+  if (payload.isPrivate !== undefined) {
+    user.isPrivate = Boolean(payload.isPrivate);
+  }
+
   if (payload.avatarUrl) {
     user.avatar = {
       url: payload.avatarUrl,
@@ -226,13 +244,17 @@ async function searchUsers(query, viewerId) {
     return [];
   }
 
-  const searchRegex = new RegExp(normalizedQuery, "i");
-  const users = await User.find({
-    $or: [{ username: searchRegex }, { fullName: searchRegex }]
-  })
-    .select("username fullName avatar bio role followers following")
-    .limit(12)
-    .lean();
+  const [users, currentUser] = await Promise.all([
+    User.find({
+      $or: [{ username: new RegExp(normalizedQuery, "i") }, { fullName: new RegExp(normalizedQuery, "i") }]
+    })
+      .select("username fullName avatar bio role followers following isPrivate")
+      .limit(12)
+      .lean(),
+    viewerId ? User.findById(viewerId).select("requestedFollows").lean() : null
+  ]);
+
+  const requestedSet = new Set((currentUser?.requestedFollows || []).map((id) => String(id)));
 
   return users.map((user) => ({
     ...sanitizeUser(user),
@@ -241,7 +263,8 @@ async function searchUsers(query, viewerId) {
     isOnline: getOnlineUsers().includes(String(user._id)),
     isFollowing: viewerId
       ? user.followers?.some((entry) => String(entry) === String(viewerId))
-      : false
+      : false,
+    isRequested: requestedSet.has(String(user._id))
   }));
 }
 
@@ -255,13 +278,13 @@ async function getSuggestions(userId) {
   }
 
   const followingList = currentUser.following || [];
-  const followingMap = new Map(followingList.map((f) => [String(f._id), f.username]));
-  const excludedIds = [userId, ...followingList.map((f) => f._id)];
+  const followingMap = new Map(followingList.map((f) => [String(f._id || f), f.username]));
+  const excludedIds = [userId, ...followingList.map((f) => f._id || f)];
 
   const users = await User.find({
     _id: { $nin: excludedIds }
   })
-    .select("username fullName avatar bio role followers")
+    .select("username fullName avatar bio role followers followRequests isPrivate")
     .sort({ createdAt: -1 })
     .limit(8)
     .lean();
@@ -277,11 +300,17 @@ async function getSuggestions(userId) {
       }
     }
 
+    const isFollowing = (user.followers || []).some((entry) => String(entry) === String(userId));
+    const isRequested = (user.followRequests || []).some((entry) => String(entry) === String(userId));
+
     return {
       ...sanitizeUser(user),
+      isPrivate: Boolean(user.isPrivate),
       followersCount: user.followers?.length || 0,
       isOnline: onlineUserIds.includes(String(user._id)),
-      followedByMutual
+      followedByMutual,
+      isFollowing,
+      isRequested
     };
   });
 }
@@ -339,6 +368,13 @@ async function getUserFollowers(viewerId, targetId) {
 
   if (!targetUser) throw new AppError(404, "User not found");
 
+  const isOwner = viewerId && String(viewerId) === String(targetId);
+  const isFollower = viewerId && (targetUser.followers || []).some((f) => String(f._id || f) === String(viewerId));
+
+  if (targetUser.isPrivate && !isOwner && !isFollower) {
+    throw new AppError(403, "This account is private. Follow this account to see their followers.");
+  }
+
   const onlineUserIds = getOnlineUsers();
   return (targetUser.followers || []).map((u) => ({
     ...sanitizeUser(u),
@@ -355,6 +391,13 @@ async function getUserFollowing(viewerId, targetId) {
 
   if (!targetUser) throw new AppError(404, "User not found");
 
+  const isOwner = viewerId && String(viewerId) === String(targetId);
+  const isFollower = viewerId && (targetUser.followers || []).some((f) => String(f._id || f) === String(viewerId));
+
+  if (targetUser.isPrivate && !isOwner && !isFollower) {
+    throw new AppError(403, "This account is private. Follow this account to see who they follow.");
+  }
+
   const onlineUserIds = getOnlineUsers();
   return (targetUser.following || []).map((u) => ({
     ...sanitizeUser(u),
@@ -363,6 +406,8 @@ async function getUserFollowing(viewerId, targetId) {
     isOnline: onlineUserIds.includes(String(u._id))
   }));
 }
+
+
 
 async function getSavedPosts(userId, query) {
   const { page, limit, skip } = parsePagination(query);
@@ -402,7 +447,34 @@ async function getSavedPosts(userId, query) {
   };
 }
 
+async function deleteUserAccount(userId) {
+  const Reel = require("../reel/reel.model");
+  const Story = require("../story/story.model");
+  const Comment = require("../comment/comment.model");
+  const Notification = require("../notification/notification.model");
+
+  await Promise.all([
+    Post.deleteMany({ author: userId }),
+    Reel.deleteMany({ author: userId }),
+    Story.deleteMany({ author: userId }),
+    Comment.deleteMany({ author: userId }),
+    Notification.deleteMany({ $or: [{ recipient: userId }, { actor: userId }] })
+  ]);
+
+  await User.updateMany(
+    {},
+    {
+      $pull: { followers: userId, following: userId, blockedUsers: userId }
+    }
+  );
+
+  await User.deleteOne({ _id: userId });
+
+  return { deleted: true };
+}
+
 module.exports = {
+  deleteUserAccount,
   getProfile,
   getProfilePosts,
   getSuggestions,

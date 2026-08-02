@@ -90,17 +90,6 @@ export default function PostGrid({ posts = [], isOwnProfile, onCreatePost, activ
             )}
 
 
-
-            <div className="gallery-tile__overlay modern-glass-overlay">
-              <span className="overlay-stat">
-                <span className="material-symbols-outlined filled">favorite</span> 
-                {getPostLikeCount(post)}
-              </span>
-              <span className="overlay-stat">
-                <span className="material-symbols-outlined filled">chat_bubble</span> 
-                {getPostCommentCount(post)}
-              </span>
-            </div>
           </div>
         );
       })}

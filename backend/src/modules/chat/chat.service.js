@@ -443,12 +443,13 @@ async function createNote(userId, body) {
 }
 
 async function getActiveNotes(userId) {
-  // Get all relevant notes for users in conversations
-  const conversations = await Message.find({ participants: userId })
-    .distinct("participants");
-  
-  const relevantUserIds = conversations.filter(id => String(id) !== String(userId));
-  relevantUserIds.push(userId);
+  // Only fetch notes from users in following and followers lists (plus self)
+  const currentUser = await User.findById(userId).select("following followers").lean();
+
+  const followingIds = (currentUser?.following || []).map((id) => String(id));
+  const followerIds = (currentUser?.followers || []).map((id) => String(id));
+
+  const relevantUserIds = Array.from(new Set([...followingIds, ...followerIds, String(userId)]));
 
   const notes = await Note.find({ user: { $in: relevantUserIds } })
     .populate("user", "username fullName avatar isOnline")

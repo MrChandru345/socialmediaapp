@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import EmojiPicker from "emoji-picker-react";
 
 import { useAuthContext } from "../../context/AuthContext";
 import { useSocketContext } from "../../context/SocketContext";
 import { chatService } from "../../services/chatService";
 import { userService } from "../../services/userService";
+import { postService } from "../../services/postService";
 import {
   getAvatarForUser,
   formatDateSeparator,
@@ -19,6 +20,7 @@ import MessageBubble from "./MessageBubble";
 import PostModal from "../post/PostModal";
 
 export default function ChatBox() {
+  const navigate = useNavigate();
   const { user } = useAuthContext();
   const { socket } = useSocketContext();
   const [conversations, setConversations] = useState([]);
@@ -145,6 +147,15 @@ export default function ChatBox() {
 
     loadConversations();
     loadNotes();
+
+    function handlePullRefresh(e) {
+      if (e.detail?.pathname?.includes("/messages") || e.detail?.pathname?.includes("/chat")) {
+        loadConversations();
+        loadNotes();
+      }
+    }
+    window.addEventListener("app:pull-refresh", handlePullRefresh);
+    return () => window.removeEventListener("app:pull-refresh", handlePullRefresh);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestedUserId]);
 
@@ -509,10 +520,43 @@ export default function ChatBox() {
     // focus input?
   }
 
-  function handlePostClick(post) {
-    setShowUserInfo(false);
-    setSelectedPostForModal(post);
-    setIsPostModalOpen(true);
+  async function handlePostClick(post) {
+    const targetId = post?.id || post?._id;
+    const isPostReel = Boolean(post?.isReel || post?.video || post?.type === "reel");
+
+    if (isPostReel && targetId) {
+      navigate(`/reels?reelId=${targetId}`);
+      return;
+    }
+
+    if (window.innerWidth <= 768) {
+      if (targetId) {
+        navigate(`/post/${targetId}`);
+      } else {
+        setShowUserInfo(false);
+        setSelectedPostForModal(post);
+        setIsPostModalOpen(true);
+      }
+    } else {
+      // Desktop UI: Open the popup PostModal directly
+      setShowUserInfo(false);
+      if (post && post.caption !== undefined) {
+        setSelectedPostForModal(post);
+        setIsPostModalOpen(true);
+      } else if (targetId) {
+        try {
+          const fullPost = await postService.getById(targetId);
+          setSelectedPostForModal(fullPost);
+          setIsPostModalOpen(true);
+        } catch (err) {
+          setSelectedPostForModal(post);
+          setIsPostModalOpen(true);
+        }
+      } else {
+        setSelectedPostForModal(post);
+        setIsPostModalOpen(true);
+      }
+    }
   }
 
   function handleEmojiClick(emojiObject) {
@@ -738,8 +782,9 @@ export default function ChatBox() {
           </div>
         </div>
 
-        {/* Instagram Stories / Active Notes Row */}
+        {/* Instagram Notes & Active Online Users Horizontal Row */}
         <div className="chat-sidebar__notes scroll-h">
+          {/* Your Note */}
           {(() => {
             const myNote = notes.find(n => (n.user?._id || n.user?.id) === user.id);
             return (
@@ -771,7 +816,62 @@ export default function ChatBox() {
             );
           })()}
 
-          {notes.filter(n => (n.user?._id || n.user?.id) !== user.id).map(note => (
+          {/* Active Online Users (rendered next to Your Note with Green Indicator) */}
+          {(() => {
+            const onlineUserMap = new Map();
+            
+            conversations.forEach((c) => {
+              if (c.otherUser && c.otherUser.isOnline) {
+                const uId = c.otherUser.id || c.otherUser._id;
+                if (uId && uId !== user.id && !onlineUserMap.has(uId)) {
+                  onlineUserMap.set(uId, c.otherUser);
+                }
+              }
+            });
+
+            notes.forEach((n) => {
+              if (n.user && n.user.isOnline && (n.user._id || n.user.id) !== user.id) {
+                const uId = n.user.id || n.user._id;
+                if (uId && !onlineUserMap.has(uId)) {
+                  onlineUserMap.set(uId, n.user);
+                }
+              }
+            });
+
+            return Array.from(onlineUserMap.values()).map((onlineUser) => {
+              const uId = onlineUser.id || onlineUser._id;
+              const displayName = onlineUser.username || onlineUser.fullName || "User";
+              const userNote = notes.find(n => (n.user?._id || n.user?.id) === uId);
+
+              return (
+                <div 
+                  key={`online-${uId}`} 
+                  className="chat-note"
+                  onClick={() => {
+                    if (userNote) {
+                      setSelectedNoteForReply(userNote);
+                    } else {
+                      setActiveConversationId(uId);
+                    }
+                  }}
+                >
+                  <div className="chat-note__avatar-wrapper">
+                    <img src={getAvatarForUser(onlineUser)} alt={displayName} />
+                    {userNote && (
+                      <div className="chat-note__bubble">
+                        <span className="note-text">{userNote.body}</span>
+                      </div>
+                    )}
+                    <span className="online-dot"></span>
+                  </div>
+                  <span className="chat-note__name">{displayName}</span>
+                </div>
+              );
+            });
+          })()}
+
+          {/* Other Notes (offline users with notes) */}
+          {notes.filter(n => (n.user?._id || n.user?.id) !== user.id && !n.user?.isOnline).map(note => (
             <div 
               key={note._id} 
               className="chat-note"
@@ -782,7 +882,6 @@ export default function ChatBox() {
                 <div className="chat-note__bubble">
                   <span className="note-text">{note.body}</span>
                 </div>
-                {note.user.isOnline && <span className="online-dot"></span>}
               </div>
               <span className="chat-note__name">{note.user.username}</span>
             </div>
@@ -1173,18 +1272,6 @@ export default function ChatBox() {
                       )}
                     </div>
                   </div>
-
-                  <div className="info-sidebar__section">
-                    <h4 className="section-title">Privacy & Support</h4>
-                    <button className="action-item danger" onClick={handleBlockUser}>
-                      <span className="material-symbols-outlined">block</span>
-                      <span>Block</span>
-                    </button>
-                    <button className="action-item danger" onClick={handleReportUser}>
-                      <span className="material-symbols-outlined">report</span>
-                      <span>Report</span>
-                    </button>
-                  </div>
                 </div>
               </div>
             )}
@@ -1196,7 +1283,7 @@ export default function ChatBox() {
             </div>
             <h2>Your messages</h2>
             <p>Send private photos and messages to a friend or group</p>
-            <button className="btn btn-primary" onClick={() => setShowNewMessageModal(true)}>Send message</button>
+            <button className="btn-primary-ig" onClick={() => setShowNewMessageModal(true)}>Send message</button>
           </div>
         )}
       </div>

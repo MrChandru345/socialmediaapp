@@ -253,15 +253,20 @@ export function AuthProvider({ children }) {
     return applySession(session);
   }
 
-  function switchAccount(userId) {
-    const target = state.accounts.find((account) => getUserId(account.user) === userId);
+  function switchAccount(userIdOrUser) {
+    const targetId = typeof userIdOrUser === "string" ? userIdOrUser : getUserId(userIdOrUser);
+    const target = state.accounts.find((account) => {
+      const id = getUserId(account.user);
+      return id && String(id) === String(targetId);
+    });
 
-    if (!target || getUserId(state.user) === userId) {
+    if (!target) {
+      console.warn("Target account not found for switching:", userIdOrUser);
       return;
     }
 
     setStoredSession(target);
-    setStoredActiveAccountId(userId);
+    setStoredActiveAccountId(getUserId(target.user));
 
     startTransition(() => {
       setState((prev) => ({
@@ -272,15 +277,21 @@ export function AuthProvider({ children }) {
         user: target.user
       }));
     });
+
+    window.location.href = "/";
   }
 
   function removeAccount(userId, options = {}) {
-    const remaining = state.accounts.filter((account) => getUserId(account.user) !== userId);
+    const targetUserId = typeof userId === "string" ? userId : getUserId(userId);
+    const remaining = state.accounts.filter((account) => {
+      const id = getUserId(account.user);
+      return !id || String(id) !== String(targetUserId);
+    });
     saveStoredAccounts(remaining);
 
     const activeUserId = getUserId(state.user);
 
-    if (activeUserId !== userId) {
+    if (activeUserId && targetUserId && String(activeUserId) !== String(targetUserId)) {
       setState((prev) => ({ ...prev, accounts: remaining }));
       return;
     }
@@ -297,6 +308,7 @@ export function AuthProvider({ children }) {
         user: nextSession.user,
         accounts: remaining
       });
+      window.location.href = "/";
       return;
     }
 
@@ -305,7 +317,7 @@ export function AuthProvider({ children }) {
     setState({ status: "ready", token: null, refreshToken: null, user: null, accounts: [] });
 
     if (!options.silent) {
-      window.history.replaceState(null, "", "/login");
+      window.location.href = "/login";
     }
   }
 
@@ -353,6 +365,21 @@ export function AuthProvider({ children }) {
     return user;
   }
 
+  function updateUser(updatedUser) {
+    if (!updatedUser) return;
+    const session = {
+      user: updatedUser,
+      accessToken: state.token,
+      token: state.token,
+      refreshToken: state.refreshToken
+    };
+    setState((prev) => ({
+      ...prev,
+      user: updatedUser,
+      accounts: upsertAndPersist(prev.accounts, session)
+    }));
+  }
+
   const value = {
     user: state.user,
     token: state.token,
@@ -366,6 +393,7 @@ export function AuthProvider({ children }) {
     logout,
     logoutAll,
     refreshUser,
+    updateUser,
     removeAccount,
     signup,
     switchAccount

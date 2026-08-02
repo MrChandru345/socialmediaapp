@@ -13,6 +13,7 @@ export default function ProfileHeader({
   isOwnProfile,
   isFollowPending,
   onEditProfile,
+  onSettings,
   onToggleFollow,
   onShareProfile,
   onMessage,
@@ -73,6 +74,15 @@ export default function ProfileHeader({
                     Edit Profile
                   </Button>
                   <Button 
+                    onClick={onSettings} 
+                    size="sm" 
+                    variant="outline" 
+                    className="radius-full premium-btn settings-btn"
+                    title="Settings"
+                  >
+                    <span className="material-symbols-outlined">settings</span>
+                  </Button>
+                  <Button 
                     onClick={onCreatePost} 
                     size="sm" 
                     variant="primary" 
@@ -88,10 +98,10 @@ export default function ProfileHeader({
                     disabled={isFollowPending}
                     onClick={onToggleFollow}
                     size="sm"
-                    variant={profile.isFollowing ? "outline" : "primary"}
+                    variant={profile.isFollowing || profile.isRequested ? "outline" : "primary"}
                     className="radius-full premium-btn"
                   >
-                    {isFollowPending ? "..." : profile.isFollowing ? "Following" : "Follow"}
+                    {isFollowPending ? "..." : profile.isFollowing ? "Following" : profile.isRequested ? "Requested" : "Follow"}
                   </Button>
                   <Button onClick={onMessage} size="sm" variant="outline" className="radius-full premium-btn">
                     Message
@@ -260,10 +270,10 @@ export default function ProfileHeader({
                 disabled={isFollowPending}
                 onClick={onToggleFollow}
                 size="sm"
-                variant={profile.isFollowing ? "outline" : "primary"}
+                variant={profile.isFollowing || profile.isRequested ? "outline" : "primary"}
                 className="profile-mobile-btn"
               >
-                {isFollowPending ? "..." : profile.isFollowing ? "Following" : "Follow"}
+                {isFollowPending ? "..." : profile.isFollowing ? "Following" : profile.isRequested ? "Requested" : "Follow"}
               </Button>
               <Button onClick={onMessage} size="sm" variant="outline" className="profile-mobile-btn">
                 Message

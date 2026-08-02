@@ -28,7 +28,7 @@ export function SocketProvider({ children }) {
       auth: {
         token
       },
-      transports: ["websocket"]
+      transports: ["polling", "websocket"]
     });
 
     socketRef.current = socket;

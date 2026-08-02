@@ -130,6 +130,9 @@ export default function ReelCommentModal({ reel, onClose, onCommentAdded, onComm
               const cid = getCommentId(comment);
               const isLiked = comment.likedByViewer;
               const likesCount = comment.likesCount || 0;
+              const isOwnComment = isOwnResource(comment.author?.id || comment.author?._id || comment.author, user?.id || user?._id || user);
+              const isReelAuthor = isOwnResource(reel?.author?.id || reel?.author?._id || reel?.author, user?.id || user?._id || user);
+              const canDelete = isOwnComment || isReelAuthor;
               return (
                 <div className="mock-comment" key={cid} style={{ gap: "12px", alignItems: "flex-start" }}>
                   <Link to={`/profile/${comment.author?.username || comment.author?.id}`} onClick={onClose}>
@@ -149,7 +152,7 @@ export default function ReelCommentModal({ reel, onClose, onCommentAdded, onComm
                     <p style={{ margin: "0 0 8px 0", fontSize: "14px", lineHeight: "1.4", color: "var(--text)" }}>{comment.content}</p>
                     <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "var(--text-soft)", fontWeight: "600" }}>
                       <span>Reply</span>
-                      {isOwnResource(comment.author?.id, user?.id) && (
+                      {canDelete && (
                         <span style={{ cursor: "pointer" }} onClick={() => handleDelete(cid)}>Delete</span>
                       )}
                     </div>

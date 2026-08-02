@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   formatRelativeTime,
@@ -5,6 +6,7 @@ import {
   getDisplayName
 } from "../../utils/helpers";
 import Loader from "../common/Loader";
+import { followService } from "../../services/followService";
 
 function getNotificationDestination(notification) {
   if (notification.type === "message") {
@@ -12,16 +14,31 @@ function getNotificationDestination(notification) {
   }
 
   if (notification.entityModel === "Reel") {
-    return "/reels";
+    return `/reels?reelId=${notification.entityId}`;
   }
 
-  if (notification.type === "follow") {
-     return `/profile/${notification.actor?.username || notification.actor?.id}`;
+  if (
+    notification.type === "follow" ||
+    notification.type === "follow_request" ||
+    notification.entityModel === "User"
+  ) {
+    return `/profile/${notification.actor?.username || notification.actor?.id || notification.actor || ""}`;
   }
 
-  if (notification.entityModel === "Post" || notification.entityModel === "Like" || notification.entityModel === "Comment") {
-     const currentPath = window.location.pathname === "/chat" ? "/" : window.location.pathname;
-     return `${currentPath}?post=${notification.entityId}`;
+  const targetId = notification.entityId || notification.post || notification.postId;
+
+  if (
+    notification.entityModel === "Post" ||
+    notification.entityModel === "Like" ||
+    notification.entityModel === "Comment"
+  ) {
+    if (targetId) {
+      if (window.innerWidth <= 768) {
+        return notification.entityModel === "Comment" ? `/post/${targetId}?focusComment=true` : `/post/${targetId}`;
+      }
+      const currentPath = window.location.pathname === "/chat" ? "/" : window.location.pathname;
+      return `${currentPath}?post=${targetId}`;
+    }
   }
 
   return "/";
@@ -172,15 +189,25 @@ export default function NotificationCenter({
 }
 
 function NotificationRow({ notification, onFollowToggle, onMarkRead, onClose }) {
+  const [requestStatus, setRequestStatus] = useState(null);
   const actorName = getDisplayName(notification.actor);
   const destination = getNotificationDestination(notification);
   const isFollow = notification.type === 'follow';
 
+  function markAsReadIfNeeded() {
+    if (!notification.isRead && onMarkRead) {
+      onMarkRead(notification.id);
+    }
+  }
+
   return (
     <div className={`notification-row ${notification.isRead ? '' : 'unread'}`}>
       <Link 
-        to={`/profile/${notification.actor?.username}`} 
-        onClick={onClose}
+        to={`/profile/${notification.actor?.username || ''}`} 
+        onClick={() => {
+          markAsReadIfNeeded();
+          onClose();
+        }}
         className={`notification-avatar-container ${!notification.isRead ? 'has-story' : ''}`}
       >
         <img 
@@ -194,7 +221,7 @@ function NotificationRow({ notification, onFollowToggle, onMarkRead, onClose }) 
         className="notification-body" 
         to={destination}
         onClick={() => {
-          if (!notification.isRead) onMarkRead(notification.id);
+          markAsReadIfNeeded();
           onClose();
         }}
       >
@@ -205,17 +232,61 @@ function NotificationRow({ notification, onFollowToggle, onMarkRead, onClose }) 
       </Link>
 
       <div className="notification-actions">
-        {isFollow && (
+        {notification.type === 'follow_request' ? (
+          requestStatus === 'accepted' ? (
+            <span style={{ fontSize: '0.78rem', color: 'var(--primary)', fontWeight: 600 }}>Accepted</span>
+          ) : requestStatus === 'rejected' ? (
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-soft)' }}>Removed</span>
+          ) : (
+            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+              <button
+                className="follow-back-btn"
+                style={{ background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer' }}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  markAsReadIfNeeded();
+                  setRequestStatus('accepted');
+                  try {
+                    await followService.acceptRequest(notification.actor.id || notification.actor._id);
+                  } catch (err) {
+                    console.error("Failed to accept follow request:", err);
+                  }
+                }}
+              >
+                Confirm
+              </button>
+              <button
+                className="follow-back-btn"
+                style={{ background: 'var(--surface-high)', color: 'var(--text)', border: '1px solid var(--surface-outline)', cursor: 'pointer' }}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  markAsReadIfNeeded();
+                  setRequestStatus('rejected');
+                  try {
+                    await followService.rejectRequest(notification.actor.id || notification.actor._id);
+                  } catch (err) {
+                    console.error("Failed to reject follow request:", err);
+                  }
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          )
+        ) : isFollow ? (
           <button 
             className={`follow-back-btn ${notification.actor?.isFollowing ? 'following' : ''}`}
             onClick={(e) => {
               e.preventDefault();
+              markAsReadIfNeeded();
               onFollowToggle(notification.actor.id || notification.actor._id);
             }}
           >
             {notification.actor?.isFollowing ? 'Following' : 'Follow Back'}
           </button>
-        )}
+        ) : null}
         {!notification.isRead && <div className="unread-dot-indicator" />}
       </div>
     </div>

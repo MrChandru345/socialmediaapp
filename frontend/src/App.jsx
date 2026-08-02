@@ -8,11 +8,12 @@ import Chat from "./pages/Chat";
 import Explore from "./pages/Explore";
 import Home from "./pages/Home";
 import ForgotPassword from "./pages/auth/ForgotPassword";
-import Login from "./pages/auth/Login";
+import AuthPage from "./components/auth/AuthPage";
 import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
+import PostDetail from "./pages/PostDetail";
 import Reels from "./pages/Reels";
 import ResetPassword from "./pages/auth/ResetPassword";
-import Signup from "./pages/auth/Signup";
 import VerifyEmail from "./pages/auth/VerifyEmail";
 
 function ProtectedPage({ children }) {
@@ -33,13 +34,15 @@ function ProtectedPage({ children }) {
 function PublicPage({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
-  const allowAuthenticatedSignup = location.pathname === "/signup" && new URLSearchParams(location.search).get("addAccount") === "1";
+  const allowAuthenticatedAddAccount =
+    (location.pathname === "/signup" || location.pathname === "/login") &&
+    new URLSearchParams(location.search).get("addAccount") === "1";
 
   if (isLoading) {
     return <Loader />;
   }
 
-  if (isAuthenticated && !allowAuthenticatedSignup) {
+  if (isAuthenticated && !allowAuthenticatedAddAccount) {
     return <Navigate replace to="/" />;
   }
 
@@ -53,7 +56,7 @@ export default function App() {
         path="/login"
         element={
           <PublicPage>
-            <Login />
+            <AuthPage initialTab="signin" />
           </PublicPage>
         }
       />
@@ -61,7 +64,7 @@ export default function App() {
         path="/signup"
         element={
           <PublicPage>
-            <Signup />
+            <AuthPage initialTab="signup" />
           </PublicPage>
         }
       />
@@ -107,6 +110,14 @@ export default function App() {
         }
       />
       <Route
+        path="/settings"
+        element={
+          <ProtectedPage>
+            <Settings />
+          </ProtectedPage>
+        }
+      />
+      <Route
         path="/chat"
         element={
           <ProtectedPage>
@@ -127,6 +138,14 @@ export default function App() {
         element={
           <ProtectedPage>
             <Reels />
+          </ProtectedPage>
+        }
+      />
+      <Route
+        path="/post/:postId"
+        element={
+          <ProtectedPage>
+            <PostDetail />
           </ProtectedPage>
         }
       />
