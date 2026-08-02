@@ -12,16 +12,23 @@ function getNotificationDestination(notification) {
   }
 
   if (notification.entityModel === "Reel") {
-    return "/reels";
+    return `/reels?reelId=${notification.entityId}`;
   }
 
   if (notification.type === "follow") {
-     return `/profile/${notification.actor?.username || notification.actor?.id}`;
+    return `/profile/${notification.actor?.username || notification.actor?.id}`;
   }
 
-  if (notification.entityModel === "Post" || notification.entityModel === "Like" || notification.entityModel === "Comment") {
-     const currentPath = window.location.pathname === "/chat" ? "/" : window.location.pathname;
-     return `${currentPath}?post=${notification.entityId}`;
+  const targetId = notification.entityId || notification.post || notification.postId;
+
+  if (notification.entityModel === "Post" || notification.entityModel === "Like" || notification.entityModel === "Comment" || targetId) {
+    if (targetId) {
+      if (window.innerWidth <= 768) {
+        return notification.entityModel === "Comment" ? `/post/${targetId}?focusComment=true` : `/post/${targetId}`;
+      }
+      const currentPath = window.location.pathname === "/chat" ? "/" : window.location.pathname;
+      return `${currentPath}?post=${targetId}`;
+    }
   }
 
   return "/";

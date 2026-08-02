@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { MessageSquare, Send, Bookmark, MoreHorizontal, Loader2, Image, Volume2, VolumeX, Play, Pause } from "lucide-react";
 import ShareModal from "../common/ShareModal";
 import ConfirmModal from "../common/ConfirmModal";
+import CommentIcon from "../common/CommentIcon";
 import PostModal from "./PostModal";
 
 import { useAuth } from "../../hooks/useAuth";
@@ -355,8 +356,11 @@ export default function PostCard({ onRemove, post }) {
             }
           }}
           onClick={() => {
+            const targetId = currentPost.id || currentPost._id;
             if (isPostReel) {
-              navigate(`/reels?reelId=${currentPost.id}`);
+              navigate(`/reels?reelId=${targetId}`);
+            } else if (window.innerWidth <= 768) {
+              navigate(`/post/${targetId}`);
             } else {
               setIsModalOpen(true);
             }
@@ -384,8 +388,21 @@ export default function PostCard({ onRemove, post }) {
               liked={currentPost.likedByViewer}
               onClick={handleLike}
             />
-            <button className="metric-button" type="button" onClick={() => setIsModalOpen(true)}>
-              <MessageSquare size={24} />
+            <button 
+              className="metric-button" 
+              type="button" 
+              onClick={() => {
+                const targetId = currentPost.id || currentPost._id;
+                if (isPostReel) {
+                  navigate(`/reels?reelId=${targetId}`);
+                } else if (window.innerWidth <= 768) {
+                  navigate(`/post/${targetId}?focusComment=true`);
+                } else {
+                  setIsModalOpen(true);
+                }
+              }}
+            >
+              <CommentIcon size={24} />
               <span>{getPostCommentCount(currentPost)}</span>
             </button>
             <button 

@@ -63,6 +63,10 @@ export default function AppShell({ children }) {
     const postId = searchParams.get("post");
 
     if (postId) {
+      if (window.innerWidth <= 768) {
+        navigate(`/post/${postId}`, { replace: true });
+        return;
+      }
       if (!selectedPostDetail || selectedPostDetail.id !== postId) {
         loadPostDetail(postId);
       }
@@ -382,7 +386,7 @@ export default function AppShell({ children }) {
         <div className="shell-main">
           <header className="topbar">
             <div className="topbar-brand" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: "'Grand Hotel', cursive, sans-serif", fontSize: "2rem" }}>
-              <img src={logo} alt="Curator" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+              <img src={logo} alt="Curator" className="mobile-topbar-logo" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
               <span>Curator</span>
             </div>
             <div className="topbar-tools">

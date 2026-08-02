@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import EmojiPicker from "emoji-picker-react";
 
 import { useAuth } from "../../hooks/useAuth";
 import { commentService } from "../../services/commentService";
@@ -24,6 +25,18 @@ export default function CommentSection({ count, onCountChange, postId }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadedPostId, setLoadedPostId] = useState("");
   const [removingCommentId, setRemovingCommentId] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (emojiRef.current && !emojiRef.current.contains(e.target)) {
+        setShowEmojiPicker(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   async function loadComments() {
     setIsLoading(true);
@@ -108,35 +121,44 @@ export default function CommentSection({ count, onCountChange, postId }) {
           {!isLoading
             ? comments.map((comment) => {
                 const commentId = getCommentId(comment);
-                const isOwnComment = isOwnResource(comment?.author?.id, user?.id);
+                const isOwnComment = isOwnResource(comment?.author?.id || comment?.author?._id || comment?.author, user?.id || user?._id || user);
+                const authorUsername = typeof comment.author === 'object'
+                  ? (comment.author?.username || comment.author?.id || comment.author?._id)
+                  : comment.author;
 
                 return (
                   <div className="comment-item" key={commentId}>
-                    <Link to={`/profile/${comment.author?.username || comment.author?.id}`}>
+                    <Link to={`/profile/${authorUsername || ''}`}>
                       <img
                         alt={getCommentAuthorLabel(comment)}
                         className="comment-item__avatar"
                         src={getAvatarForUser(comment.author, getCommentAuthorLabel(comment))}
+                        style={{ cursor: 'pointer' }}
                       />
                     </Link>
                     <div className="comment-item__body">
                       <p>
-                        <Link to={`/profile/${comment.author?.username || comment.author?.id}`}>
-                          <strong style={{ cursor: 'pointer', color: 'inherit', textDecoration: 'none' }}>{getCommentAuthorLabel(comment)}</strong>
+                        <Link to={`/profile/${authorUsername || ''}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                          <strong style={{ cursor: 'pointer' }}>{getCommentAuthorLabel(comment)}</strong>
                         </Link>
                         {" "}{comment.content}
                       </p>
                       <div className="comment-item__meta">
                         <span>{getCommentMeta(comment)}</span>
                         {isOwnComment ? (
-                          <button
-                            className="link-button comment-item__delete"
-                            disabled={removingCommentId === commentId}
-                            onClick={() => handleDelete(commentId)}
-                            type="button"
-                          >
-                            {removingCommentId === commentId ? "Deleting..." : "Delete"}
-                          </button>
+                          <div style={{ position: "relative", display: "inline-block", marginLeft: "auto" }}>
+                            <button
+                              aria-label="Delete comment"
+                              className="link-button comment-item__delete"
+                              disabled={removingCommentId === commentId}
+                              onClick={() => handleDelete(commentId)}
+                              type="button"
+                              style={{ display: "flex", alignItems: "center", gap: "4px", padding: "2px 6px" }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>delete</span>
+                              <span>{removingCommentId === commentId ? "..." : "Delete"}</span>
+                            </button>
+                          </div>
                         ) : null}
                       </div>
                     </div>
@@ -146,6 +168,30 @@ export default function CommentSection({ count, onCountChange, postId }) {
             : null}
 
           <form className="instagram-comment-box" onSubmit={handleSubmit}>
+            <div ref={emojiRef} className="comment-emoji-wrapper">
+              <button
+                type="button"
+                className="icon-button emoji-toggle-btn"
+                onClick={() => setShowEmojiPicker((prev) => !prev)}
+                title="Add Emoji"
+              >
+                <span className="material-symbols-outlined">mood</span>
+              </button>
+
+              {showEmojiPicker && (
+                <div className="comment-emoji-popover">
+                  <EmojiPicker
+                    onEmojiClick={(emojiData) => {
+                      setDraft((prev) => prev + emojiData.emoji);
+                    }}
+                    theme="dark"
+                    width={280}
+                    height={320}
+                  />
+                </div>
+              )}
+            </div>
+
             <textarea
               className="instagram-comment-input"
               onChange={(event) => setDraft(event.target.value)}
@@ -153,6 +199,7 @@ export default function CommentSection({ count, onCountChange, postId }) {
               rows="1"
               value={draft}
             />
+
             {draft.trim() ? (
               <button
                 className="instagram-comment-submit"

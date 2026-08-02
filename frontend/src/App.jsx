@@ -11,6 +11,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import AuthPage from "./components/auth/AuthPage";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import PostDetail from "./pages/PostDetail";
 import Reels from "./pages/Reels";
 import ResetPassword from "./pages/auth/ResetPassword";
 import VerifyEmail from "./pages/auth/VerifyEmail";
@@ -137,6 +138,14 @@ export default function App() {
         element={
           <ProtectedPage>
             <Reels />
+          </ProtectedPage>
+        }
+      />
+      <Route
+        path="/post/:postId"
+        element={
+          <ProtectedPage>
+            <PostDetail />
           </ProtectedPage>
         }
       />

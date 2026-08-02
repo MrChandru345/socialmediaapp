@@ -432,8 +432,11 @@ export default function Profile() {
                 onCreatePost={handleCreationChoice} 
                 activeTab={activeTab}
                 onPostClick={(post) => {
+                  const targetId = post?.id || post?._id;
                   if (isReel(post)) {
-                    navigate(`/reels?reelId=${post.id}`);
+                    navigate(`/reels?reelId=${targetId}`);
+                  } else if (window.innerWidth <= 768) {
+                    navigate(`/post/${targetId}`);
                   } else {
                     setSelectedPost(post);
                   }

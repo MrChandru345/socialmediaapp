@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import EmojiPicker from "emoji-picker-react";
 
 import { useAuthContext } from "../../context/AuthContext";
@@ -19,6 +19,7 @@ import MessageBubble from "./MessageBubble";
 import PostModal from "../post/PostModal";
 
 export default function ChatBox() {
+  const navigate = useNavigate();
   const { user } = useAuthContext();
   const { socket } = useSocketContext();
   const [conversations, setConversations] = useState([]);
@@ -510,9 +511,19 @@ export default function ChatBox() {
   }
 
   function handlePostClick(post) {
-    setShowUserInfo(false);
-    setSelectedPostForModal(post);
-    setIsPostModalOpen(true);
+    const targetId = post?.id || post?._id;
+    const isPostReel = Boolean(post?.isReel || post?.video || post?.type === "reel");
+    if (targetId) {
+      if (isPostReel) {
+        navigate(`/reels?reelId=${targetId}`);
+      } else {
+        navigate(`/post/${targetId}`);
+      }
+    } else {
+      setShowUserInfo(false);
+      setSelectedPostForModal(post);
+      setIsPostModalOpen(true);
+    }
   }
 
   function handleEmojiClick(emojiObject) {

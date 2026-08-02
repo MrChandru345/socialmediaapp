@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import ShareModal from "../common/ShareModal";
 import ConfirmModal from "../common/ConfirmModal";
+import CommentIcon from "../common/CommentIcon";
 import { useAuth } from "../../hooks/useAuth";
 import { postService } from "../../services/postService";
 import { reelService } from "../../services/reelService";
@@ -302,17 +303,26 @@ export default function PostModal({ post, open, onClose, onPostUpdated, isBottom
             ) : (
               comments.map(comment => {
                 const cid = getCommentId(comment);
-                const isOwn = isOwnResource(comment?.author?.id, user?.id);
+                const isOwn = isOwnResource(comment?.author?.id || comment?.author?._id || comment?.author, user?.id || user?._id || user);
+                const authorUsername = typeof comment.author === 'object'
+                  ? (comment.author?.username || comment.author?.id || comment.author?._id)
+                  : comment.author;
+
                 return (
                   <div className="thread-item comment-item" key={cid}>
-                    <img
-                      src={getAvatarForUser(comment.author, getCommentAuthorLabel(comment))}
-                      alt=""
-                      className="thread-avatar"
-                    />
+                    <Link to={`/profile/${authorUsername || ''}`} onClick={onClose}>
+                      <img
+                        src={getAvatarForUser(comment.author, getCommentAuthorLabel(comment))}
+                        alt=""
+                        className="thread-avatar"
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </Link>
                     <div className="thread-content" style={{ flex: 1, minWidth: 0 }}>
                       <p>
-                        <strong>{comment.author?.username || getCommentAuthorLabel(comment)}</strong>
+                        <Link to={`/profile/${authorUsername || ''}`} onClick={onClose} style={{ color: 'inherit', textDecoration: 'none' }}>
+                          <strong style={{ cursor: 'pointer' }}>{comment.author?.username || getCommentAuthorLabel(comment)}</strong>
+                        </Link>
                         {" "}{comment.content}
                       </p>
                       <div className="thread-meta">
@@ -342,7 +352,7 @@ export default function PostModal({ post, open, onClose, onPostUpdated, isBottom
                   className="metric-button"
                   onClick={() => document.getElementById('modal-comment-input')?.focus()}
                 >
-                  <span className="material-symbols-outlined">chat_bubble</span>
+                  <CommentIcon size={24} />
                   <span>{currentPost.commentsCount || 0}</span>
                 </button>
                 <button

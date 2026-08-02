@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MessageSquare, Send, Bookmark, MoreHorizontal } from "lucide-react";
+import { Heart, Send, Bookmark, MoreHorizontal } from "lucide-react";
+import CommentIcon from "../common/CommentIcon";
 import { getAvatarForUser, formatCompactNumber } from "../../utils/helpers";
 import { followService } from "../../services/followService";
 import { reelService } from "../../services/reelService";
@@ -285,7 +286,7 @@ export default function ReelPlayer({ reel, onPostClick }) {
           </button>
           <button className="reel-action-btn" onClick={(e) => { e.stopPropagation(); setShowComments(true); }}>
             <div className="icon-circle">
-              <MessageSquare size={28} color="currentColor" />
+              <CommentIcon size={28} color="currentColor" />
             </div>
             <span className="action-label">{formatCompactNumber(commentsCount)}</span>
           </button>
