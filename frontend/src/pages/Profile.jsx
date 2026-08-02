@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import EditProfileModal from "../components/profile/EditProfileModal";
+import SettingsModal from "../components/profile/SettingsModal";
 import ProfileHeader from "../components/profile/ProfileHeader";
 import ProfileTabs from "../components/profile/ProfileTabs";
 import PostGrid from "../components/profile/PostGrid";
@@ -17,7 +18,7 @@ import CreateStoryModal from "../components/story/CreateStoryModal";
 import { useAuth } from "../hooks/useAuth";
 import { followService } from "../services/followService";
 import { userService } from "../services/userService";
-import { getApiErrorMessage, isReel } from "../utils/helpers";
+import { getApiErrorMessage, isReel, getAvatarForUser, getDisplayName } from "../utils/helpers";
 
 const initialState = {
   error: "",
@@ -33,9 +34,11 @@ const initialState = {
 export default function Profile() {
   const navigate = useNavigate();
   const { identifier } = useParams();
-  const { user } = useAuth();
+  const { user, accounts, switchAccount, activeAccountId } = useAuth();
   const [state, setState] = useState(initialState);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [isFollowPending, setIsFollowPending] = useState(false);
   const [copiedToast, setCopiedToast] = useState(false);
   const [activeTab, setActiveTab] = useState('posts');
@@ -233,17 +236,155 @@ export default function Profile() {
 
       <div className="profile-page-wrapper" style={{ maxWidth: 'var(--content-max)', margin: '0 auto', padding: '0 1rem', width: '100%' }}>
         {/* Mobile Profile Header */}
-        <div className="mobile-profile-header">
+        <div className="mobile-profile-header" style={{ position: 'relative' }}>
           <button className="mobile-header-btn" onClick={() => navigate(-1)}>
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
-          <span className="mobile-header-username">{state.profile.username}</span>
+
+          <button
+            className="mobile-header-username-btn"
+            onClick={() => isOwnProfile && setShowAccountDropdown(!showAccountDropdown)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'transparent',
+              border: 'none',
+              cursor: isOwnProfile ? 'pointer' : 'default',
+              padding: '0 4px'
+            }}
+          >
+            <span className="mobile-header-username">{state.profile.username}</span>
+            {isOwnProfile && (
+              <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--text)', transition: 'transform 0.2s', transform: showAccountDropdown ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                keyboard_arrow_down
+              </span>
+            )}
+          </button>
+
           {isOwnProfile ? (
-            <button className="mobile-header-btn" onClick={() => setIsEditOpen(true)}>
+            <button className="mobile-header-btn" onClick={() => navigate("/settings")}>
               <span className="material-symbols-outlined">settings</span>
             </button>
           ) : (
             <div style={{ width: '24px' }} />
+          )}
+
+          {/* Account Switcher Dropdown */}
+          {showAccountDropdown && isOwnProfile && (
+            <div
+              className="profile-account-dropdown modern-glass radius-xl"
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '280px',
+                zIndex: 100,
+                padding: '0.75rem',
+                background: 'var(--surface-card)',
+                border: '1px solid var(--surface-outline)',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}
+            >
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 0.25rem' }}>
+                Switch Account
+              </div>
+              {accounts.map((acc) => {
+                const accUser = acc.user;
+                const accUserId = accUser?.id || accUser?._id;
+                const isActive = Boolean(accUserId && String(accUserId) === String(activeAccountId));
+                return (
+                  <div
+                    key={accUserId || Math.random()}
+                    onClick={() => {
+                      if (!isActive && accUser) {
+                        switchAccount(accUser);
+                        setShowAccountDropdown(false);
+                      }
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.65rem',
+                      padding: '0.55rem 0.65rem',
+                      borderRadius: '10px',
+                      background: isActive ? 'var(--surface-high)' : 'var(--surface-low)',
+                      cursor: isActive ? 'default' : 'pointer'
+                    }}
+                  >
+                    <img
+                      src={getAvatarForUser(accUser, getDisplayName(accUser))}
+                      alt={accUser?.username}
+                      style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover' }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {getDisplayName(accUser)}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-soft)' }}>
+                        @{accUser?.username}
+                      </span>
+                    </div>
+                    {isActive && (
+                      <span className="material-symbols-outlined" style={{ color: 'var(--primary)', fontSize: '18px' }}>
+                        check_circle
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+
+              <div style={{ borderTop: '1px solid var(--surface-outline)', paddingTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <button
+                  onClick={() => {
+                    setShowAccountDropdown(false);
+                    navigate("/login?addAccount=1");
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.45rem 0.65rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--text)',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>login</span>
+                  <span>Add Existing Account</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAccountDropdown(false);
+                    navigate("/signup?addAccount=1");
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.45rem 0.65rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--text)',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_add</span>
+                  <span>Create New Account</span>
+                </button>
+              </div>
+            </div>
           )}
         </div>
         {state.error ? (
@@ -265,6 +406,7 @@ export default function Profile() {
           isOwnProfile={isOwnProfile}
           isFollowPending={isFollowPending}
           onEditProfile={() => setIsEditOpen(true)}
+          onSettings={() => navigate("/settings")}
           onToggleFollow={handleToggleFollow}
           onShareProfile={handleShareProfile}
           onMessage={() => navigate(`/chat?userId=${state.profile.id}`)}
@@ -341,6 +483,12 @@ export default function Profile() {
         targetUserId={state.profile?.id}
         type={networkModal.type}
         title={networkModal.title}
+      />
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onEditProfile={() => setIsEditOpen(true)}
       />
 
       <EditProfileModal

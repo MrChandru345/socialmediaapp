@@ -13,11 +13,13 @@ import NotificationCenter from "../notification/NotificationCenter";
 import PostModal from "../post/PostModal";
 import Button from "./Button";
 import AccountSwitcher from "./AccountSwitcher";
+import ReelIcon from "./ReelIcon";
+import logo from "../../assets/logo.png";
 
 const navItems = [
   { label: "Home", icon: "home", to: "/" },
   { label: "Search", icon: "search", to: "/explore" },
-  { label: "Reels", icon: "movie", to: "/reels" },
+  { label: "Reels", icon: "reel", to: "/reels" },
   { label: "Messages", icon: "chat", to: "/chat" },
   { label: "Profile", icon: "person", to: "/profile" }
 ];
@@ -26,7 +28,7 @@ const mobileNavItems = [
   { label: "Home", icon: "home", to: "/" },
   { label: "Search", icon: "search", to: "/explore" },
   { label: "Messages", icon: "near_me", to: "/chat" },
-  { label: "Reels", icon: "movie", to: "/reels" },
+  { label: "Reels", icon: "reel", to: "/reels" },
   { label: "Profile", icon: "person", to: "/profile" }
 ];
 
@@ -310,8 +312,8 @@ export default function AppShell({ children }) {
       <div className="app-shell">
         <aside className="sidebar">
           <div className="brand-lockup">
-            <div className="brand-mark">
-              <span className="material-symbols-outlined filled">gallery_thumbnail</span>
+            <div className="brand-mark" style={{ background: 'transparent', padding: 0 }}>
+              <img src={logo} alt="Curator" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             </div>
             <div>
               <h1>Curator</h1>
@@ -328,8 +330,12 @@ export default function AppShell({ children }) {
                 }
                 to={item.to}
               >
-                <div style={{ position: 'relative', display: 'flex' }}>
-                  <span className="material-symbols-outlined">{item.icon}</span>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  {item.icon === 'reel' ? (
+                    <ReelIcon size={22} />
+                  ) : (
+                    <span className="material-symbols-outlined">{item.icon}</span>
+                  )}
                   {item.label === "Messages" && unreadChatCount > 0 && (
                     <span className="sidebar-badge">
                       {unreadChatCount > 9 ? '9+' : unreadChatCount}
@@ -375,8 +381,9 @@ export default function AppShell({ children }) {
 
         <div className="shell-main">
           <header className="topbar">
-            <div className="topbar-brand" style={{ fontFamily: "'Grand Hotel', cursive, sans-serif", fontSize: "2rem" }}>
-              Curator
+            <div className="topbar-brand" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: "'Grand Hotel', cursive, sans-serif", fontSize: "2rem" }}>
+              <img src={logo} alt="Curator" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+              <span>Curator</span>
             </div>
             <div className="topbar-tools">
               <button className="icon-button" onClick={openPostComposer} type="button">
@@ -397,8 +404,12 @@ export default function AppShell({ children }) {
                 }
                 to={item.to}
               >
-                <div style={{ position: 'relative', display: 'flex' }}>
-                  <span className="material-symbols-outlined">{item.icon}</span>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  {item.icon === 'reel' ? (
+                    <ReelIcon size={22} />
+                  ) : (
+                    <span className="material-symbols-outlined">{item.icon}</span>
+                  )}
                   {item.label === "Messages" && unreadChatCount > 0 && (
                     <span className="sidebar-badge" style={{ position: 'absolute', top: -4, right: -6, width: 16, height: 16, fontSize: '10px' }}>
                       {unreadChatCount > 9 ? '9+' : unreadChatCount}

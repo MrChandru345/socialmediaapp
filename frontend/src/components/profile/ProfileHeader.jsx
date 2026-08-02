@@ -13,6 +13,7 @@ export default function ProfileHeader({
   isOwnProfile,
   isFollowPending,
   onEditProfile,
+  onSettings,
   onToggleFollow,
   onShareProfile,
   onMessage,
@@ -71,6 +72,15 @@ export default function ProfileHeader({
                 <>
                   <Button onClick={onEditProfile} size="sm" variant="outline" className="radius-full premium-btn">
                     Edit Profile
+                  </Button>
+                  <Button 
+                    onClick={onSettings} 
+                    size="sm" 
+                    variant="outline" 
+                    className="radius-full premium-btn settings-btn"
+                    title="Settings"
+                  >
+                    <span className="material-symbols-outlined">settings</span>
                   </Button>
                   <Button 
                     onClick={onCreatePost} 

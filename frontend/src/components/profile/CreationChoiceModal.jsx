@@ -1,5 +1,6 @@
 import React from 'react';
 import Modal from '../common/Modal';
+import ReelIcon from '../common/ReelIcon';
 
 export default function CreationChoiceModal({ open, onClose, onChoosePost, onChooseReel, onChooseStory }) {
   return (
@@ -30,7 +31,7 @@ export default function CreationChoiceModal({ open, onClose, onChoosePost, onCho
           }}
         >
           <div className="choice-icon-wrap reel-icon">
-            <span className="material-symbols-outlined">movie</span>
+            <ReelIcon size={22} />
           </div>
           <div className="choice-info">
             <strong>Reel</strong>

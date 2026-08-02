@@ -94,7 +94,7 @@ export default function SignUpForm({ onSwitch }) {
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       className="space-y-2.5"
     >
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <Field
           label="Full Name"
           icon={User}
@@ -121,26 +121,24 @@ export default function SignUpForm({ onSwitch }) {
         onChange={(e) => updateField('email', e.target.value)}
         required
       />
-      <div className="grid grid-cols-2 gap-3">
-        <Field
-          label="Password"
-          isPassword
-          icon={Lock}
-          placeholder="Create password"
-          value={formData.password}
-          onChange={(e) => updateField('password', e.target.value)}
-          required
-        />
-        <Field
-          label="Confirm Password"
-          isPassword
-          icon={ShieldCheck}
-          placeholder="Repeat password"
-          value={formData.confirmPassword}
-          onChange={(e) => updateField('confirmPassword', e.target.value)}
-          required
-        />
-      </div>
+      <Field
+        label="Password"
+        isPassword
+        icon={Lock}
+        placeholder="Create password"
+        value={formData.password}
+        onChange={(e) => updateField('password', e.target.value)}
+        required
+      />
+      <Field
+        label="Confirm Password"
+        isPassword
+        icon={ShieldCheck}
+        placeholder="Repeat password"
+        value={formData.confirmPassword}
+        onChange={(e) => updateField('confirmPassword', e.target.value)}
+        required
+      />
 
       {error && (
         <p className="text-[13px] text-red-400 font-medium text-center bg-red-500/10 border border-red-500/20 rounded-xl py-2.5 px-3">

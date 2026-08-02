@@ -228,26 +228,82 @@ strong {
 
 .page-loader,
 .loader-block {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  gap: 0.85rem;
-  color: var(--primary);
+  width: 100%;
+  min-height: 70vh;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-weight: 800;
 }
 
-.loader-block {
-  min-height: 18rem;
+.loader-block span {
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  background: linear-gradient(135deg, #ff8a5c, #f2317a, #7c4dff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .loader-spinner {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 999px;
-  border: 3px solid rgba(79, 70, 229, 0.16);
-  border-top-color: var(--primary);
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  padding: 3.5px;
+  background: conic-gradient(from 0deg, #ff8a5c, #f2317a, #7c4dff, #3d6fff, #ff8a5c);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 0);
   animation: spin 0.85s linear infinite;
+}
+
+/* Settings Modal Button Styles */
+.settings-option-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: var(--surface-low);
+  border: 1px solid var(--surface-outline);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-option-btn:hover {
+  background: var(--surface-high);
+}
+
+.settings-option-btn.danger {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.settings-option-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.settings-option-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.theme-status-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 99px;
+  background: var(--surface-high);
+  color: var(--text-soft);
+  border: 1px solid var(--surface-outline);
 }
 
 @keyframes spin {
@@ -2623,7 +2679,25 @@ strong {
 
 .btn-primary-ig {
   background: var(--primary);
-  color: white;
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+}
+
+.btn-primary-ig:hover {
+  opacity: 0.9;
+}
+
+.btn-primary-ig:active {
+  transform: scale(0.98);
 }
 
 .btn-primary-ig:disabled {

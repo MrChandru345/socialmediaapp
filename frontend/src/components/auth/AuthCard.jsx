@@ -14,7 +14,7 @@ export default function AuthCard({ initialTab = 'signin' }) {
   const [tab, setTab] = useState(initialTab)
 
   return (
-    <div className="relative flex min-h-full items-center justify-center px-6 py-4 lg:py-[clamp(1rem,2.5vh,2rem)] sm:px-10 lg:px-12">
+    <div className="relative flex min-h-full w-full items-center justify-center px-3 py-4 sm:px-8 lg:px-12 lg:py-[clamp(1rem,2.5vh,2rem)]">
       {/* ambient orb glow, echoes the wordmark's sphere */}
       <div className="pointer-events-none absolute -right-10 -top-10 opacity-70 blur-[2px]">
         <Orb size={90} />
@@ -27,7 +27,7 @@ export default function AuthCard({ initialTab = 'signin' }) {
         initial={{ opacity: 0, y: 28, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.85, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-        className="glass-strong relative w-full max-w-[380px] overflow-hidden rounded-[24px] p-5 shadow-card sm:p-6"
+        className="glass-strong relative w-full max-w-[450px] lg:max-w-[400px] overflow-hidden rounded-[24px] p-5 shadow-card sm:p-6"
       >
         {/* faint top sheen */}
         <div

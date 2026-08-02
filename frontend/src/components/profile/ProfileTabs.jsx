@@ -1,7 +1,9 @@
+import ReelIcon from "../common/ReelIcon";
+
 export default function ProfileTabs({ activeTab, onTabChange, isOwnProfile }) {
   const tabs = [
     { id: 'posts', label: 'Posts', icon: 'grid_on' },
-    { id: 'reels', label: 'Reels', icon: 'movie' },
+    { id: 'reels', label: 'Reels', icon: 'reel' },
     ...(isOwnProfile ? [{ id: 'saved', label: 'Saved', icon: 'bookmark_border' }] : [])
   ];
 
@@ -13,7 +15,11 @@ export default function ProfileTabs({ activeTab, onTabChange, isOwnProfile }) {
           className={`profile-tab ${activeTab === tab.id ? 'active' : ''}`}
           onClick={() => onTabChange(tab.id)}
         >
-          <span className="material-symbols-outlined">{tab.icon}</span>
+          {tab.id === 'reels' ? (
+            <ReelIcon size={18} />
+          ) : (
+            <span className="material-symbols-outlined">{tab.icon}</span>
+          )}
           <span className="tab-label">{tab.label}</span>
         </button>
       ))}

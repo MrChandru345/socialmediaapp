@@ -10,6 +10,7 @@ import Home from "./pages/Home";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import AuthPage from "./components/auth/AuthPage";
 import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 import Reels from "./pages/Reels";
 import ResetPassword from "./pages/auth/ResetPassword";
 import VerifyEmail from "./pages/auth/VerifyEmail";
@@ -32,13 +33,15 @@ function ProtectedPage({ children }) {
 function PublicPage({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
-  const allowAuthenticatedSignup = location.pathname === "/signup" && new URLSearchParams(location.search).get("addAccount") === "1";
+  const allowAuthenticatedAddAccount =
+    (location.pathname === "/signup" || location.pathname === "/login") &&
+    new URLSearchParams(location.search).get("addAccount") === "1";
 
   if (isLoading) {
     return <Loader />;
   }
 
-  if (isAuthenticated && !allowAuthenticatedSignup) {
+  if (isAuthenticated && !allowAuthenticatedAddAccount) {
     return <Navigate replace to="/" />;
   }
 
@@ -102,6 +105,14 @@ export default function App() {
         element={
           <ProtectedPage>
             <Profile />
+          </ProtectedPage>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedPage>
+            <Settings />
           </ProtectedPage>
         }
       />

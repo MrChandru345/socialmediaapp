@@ -37,7 +37,7 @@ export default function AuthPage({ initialTab = 'signin' }) {
   }, [showSplash])
 
   return (
-    <div className="relative min-h-screen w-full lg:h-full lg:overflow-hidden">
+    <div className="relative min-h-screen w-full overflow-y-auto lg:h-full lg:overflow-hidden">
       <AmbientBackground />
       <AnimatePresence mode="wait">
         {showSplash ? (
@@ -54,7 +54,7 @@ export default function AuthPage({ initialTab = 'signin' }) {
               <BrandPanel />
             </div>
 
-            <div className="w-full lg:h-full lg:w-[45%] xl:w-[44%]">
+            <div className="w-full min-h-screen flex items-center justify-center py-6 px-2 sm:px-4 lg:py-0 lg:px-0 lg:min-h-full lg:h-full lg:w-[45%] xl:w-[44%]">
               <AuthCard initialTab={initialTab} />
             </div>
           </motion.div>

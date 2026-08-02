@@ -3,6 +3,7 @@ const express = require("express");
 const { optionalAuth, protect } = require("../../middleware/auth.middleware");
 const { upload } = require("../../middleware/upload.middleware");
 const {
+  deleteMyAccount,
   getUserProfile,
   getUserProfilePosts,
   listSuggestions,
@@ -18,6 +19,7 @@ const {
 
 const router = express.Router();
 
+router.delete("/me", protect, deleteMyAccount);
 router.get("/search", protect, searchForUsers);
 router.get("/suggestions", protect, listSuggestions);
 router.get("/me/following", protect, getMyFollowing);

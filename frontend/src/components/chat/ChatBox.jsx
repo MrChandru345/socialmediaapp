@@ -1196,7 +1196,7 @@ export default function ChatBox() {
             </div>
             <h2>Your messages</h2>
             <p>Send private photos and messages to a friend or group</p>
-            <button className="btn btn-primary" onClick={() => setShowNewMessageModal(true)}>Send message</button>
+            <button className="btn-primary-ig" onClick={() => setShowNewMessageModal(true)}>Send message</button>
           </div>
         )}
       </div>
