@@ -365,6 +365,21 @@ export function AuthProvider({ children }) {
     return user;
   }
 
+  function updateUser(updatedUser) {
+    if (!updatedUser) return;
+    const session = {
+      user: updatedUser,
+      accessToken: state.token,
+      token: state.token,
+      refreshToken: state.refreshToken
+    };
+    setState((prev) => ({
+      ...prev,
+      user: updatedUser,
+      accounts: upsertAndPersist(prev.accounts, session)
+    }));
+  }
+
   const value = {
     user: state.user,
     token: state.token,
@@ -378,6 +393,7 @@ export function AuthProvider({ children }) {
     logout,
     logoutAll,
     refreshUser,
+    updateUser,
     removeAccount,
     signup,
     switchAccount

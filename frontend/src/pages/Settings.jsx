@@ -6,12 +6,38 @@ import Button from "../components/common/Button";
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
   const [showSwitchOptions, setShowSwitchOptions] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+
+  const [isPrivate, setIsPrivate] = useState(Boolean(user?.isPrivate));
+  const [isUpdatingPrivacy, setIsUpdatingPrivacy] = useState(false);
+
+  useEffect(() => {
+    if (user?.isPrivate !== undefined) {
+      setIsPrivate(Boolean(user.isPrivate));
+    }
+  }, [user?.isPrivate]);
+
+  async function handleTogglePrivacy(e) {
+    const nextVal = e.target.checked;
+    setIsPrivate(nextVal);
+    setIsUpdatingPrivacy(true);
+    try {
+      const updated = await userService.updateProfile({ isPrivate: nextVal });
+      if (updateUser) {
+        updateUser(updated);
+      }
+    } catch (err) {
+      console.error("Failed to update privacy:", err);
+      setIsPrivate(!nextVal);
+    } finally {
+      setIsUpdatingPrivacy(false);
+    }
+  }
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -88,7 +114,7 @@ export default function Settings() {
 
       {/* Main Options */}
       <div className="settings-page-content" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-        {/* Appearance Option */}
+        {/* Preferences / Theme Option */}
         <div className="settings-group">
           <h2 style={{ fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-soft)", margin: "0 0 0.5rem 0" }}>
             Preferences
@@ -102,6 +128,66 @@ export default function Settings() {
             </div>
             <span className="theme-status-badge">{theme.toUpperCase()}</span>
           </button>
+        </div>
+
+        {/* Account Privacy Toggle */}
+        <div className="settings-group">
+          <h2 style={{ fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-soft)", margin: "0 0 0.5rem 0" }}>
+            Account Privacy
+          </h2>
+          <div 
+            className="settings-option-btn"
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "default" }}
+          >
+            <div className="settings-option-left" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <span className="material-symbols-outlined">
+                {isPrivate ? "lock" : "public"}
+              </span>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span style={{ fontWeight: 600 }}>Private Account</span>
+                <span style={{ fontSize: "0.78rem", color: "var(--text-soft)" }}>
+                  {isPrivate 
+                    ? "Only approved followers can see your posts and reels." 
+                    : "Anyone can see your posts and reels."}
+                </span>
+              </div>
+            </div>
+
+            <label className="privacy-switch" style={{ position: "relative", display: "inline-block", width: "44px", height: "24px", flexShrink: 0 }}>
+              <input
+                type="checkbox"
+                checked={isPrivate}
+                disabled={isUpdatingPrivacy}
+                onChange={handleTogglePrivacy}
+                style={{ opacity: 0, width: 0, height: 0 }}
+              />
+              <span 
+                className="privacy-slider"
+                style={{
+                  position: "absolute",
+                  cursor: isUpdatingPrivacy ? "wait" : "pointer",
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: isPrivate ? "var(--primary)" : "var(--surface-outline)",
+                  transition: "0.2s",
+                  borderRadius: "24px"
+                }}
+              >
+                <span 
+                  style={{
+                    position: "absolute",
+                    content: '""',
+                    height: "18px",
+                    width: "18px",
+                    left: isPrivate ? "22px" : "3px",
+                    bottom: "3px",
+                    backgroundColor: "#fff",
+                    transition: "0.2s",
+                    borderRadius: "50%"
+                  }}
+                />
+              </span>
+            </label>
+          </div>
         </div>
 
         {/* Switch Account Section */}

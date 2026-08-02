@@ -55,8 +55,16 @@ export default function Explore() {
   useEffect(() => {
     document.body.classList.add("explore-page-active");
     loadExplore();
+
+    function handlePullRefresh(e) {
+      if (e.detail?.pathname?.includes("/explore")) {
+        loadExplore();
+      }
+    }
+    window.addEventListener("app:pull-refresh", handlePullRefresh);
     return () => {
       document.body.classList.remove("explore-page-active");
+      window.removeEventListener("app:pull-refresh", handlePullRefresh);
     };
   }, []);
 
@@ -358,17 +366,8 @@ export default function Explore() {
                     )}
 
 
-                    <div className="gallery-tile__overlay modern-glass-overlay">
-                      <span className="overlay-stat">
-                        <span className="material-symbols-outlined filled">favorite</span> 
-                        {getPostLikeCount(post)}
-                      </span>
-                      <span className="overlay-stat">
-                        <span className="material-symbols-outlined filled">chat_bubble</span> 
-                        {getPostCommentCount(post)}
-                      </span>
-                    </div>
                   </button>
+
                 );
               })}
             </div>

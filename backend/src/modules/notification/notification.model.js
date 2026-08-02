@@ -1,4 +1,4 @@
-﻿const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
 const notificationSchema = new mongoose.Schema(
   {
@@ -15,7 +15,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["like", "comment", "follow", "message", "system"],
+      enum: ["like", "comment", "follow", "follow_request", "message", "system"],
       required: true
     },
     entityId: {

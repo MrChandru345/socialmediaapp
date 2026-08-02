@@ -10,6 +10,8 @@ const logger = require("../../utils/logger");
 const { createNotification } = require("../notification/notification.service");
 const { REEL_CAPTION_MAX_LENGTH } = require("./reel.constants");
 const Reel = require("./reel.model");
+const User = require("../user/user.model");
+const Notification = require("../notification/notification.model");
 
 function formatAuthor(author, viewerId) {
   const user = sanitizeUser(author);
@@ -25,6 +27,7 @@ function formatAuthor(author, viewerId) {
     fullName: user.fullName,
     avatar: user.avatar,
     role: user.role,
+    isPrivate: Boolean(user.isPrivate),
     followersCount: user.followers?.length || 0,
     isFollowing: viewerId
       ? user.followers?.some((entry) => String(entry) === String(viewerId))
@@ -143,10 +146,26 @@ async function createReel(userId, payload = {}, file) {
 
 async function getReels(query, viewerId) {
   const { page, limit, skip } = parsePagination(query);
+  const [currentUser, privateUsers] = await Promise.all([
+    viewerId ? User.findById(viewerId).select("following").lean() : null,
+    User.find({ isPrivate: true }).select("_id").lean()
+  ]);
+
+  const privateUserIds = privateUsers.map((u) => u._id);
+  const followingIds = currentUser?.following || [];
+
   const filter = {};
   
   if (query.author) {
     filter.author = query.author;
+  } else if (viewerId) {
+    filter.$or = [
+      { author: viewerId },
+      { author: { $in: followingIds } },
+      { author: { $nin: privateUserIds } }
+    ];
+  } else {
+    filter.author = { $nin: privateUserIds };
   }
 
   const [reels, total] = await Promise.all([
@@ -154,7 +173,7 @@ async function getReels(query, viewerId) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("author", "username fullName avatar role followers")
+      .populate("author", "username fullName avatar role followers isPrivate")
       .lean(),
     Reel.countDocuments(filter)
   ]);
@@ -167,11 +186,21 @@ async function getReels(query, viewerId) {
 
 async function getReelById(reelId, viewerId) {
   const reel = await Reel.findById(reelId)
-    .populate("author", "username fullName avatar role followers")
+    .populate("author", "username fullName avatar role followers isPrivate")
     .lean();
 
   if (!reel) {
     throw new AppError(404, "Reel not found");
+  }
+
+  const isAuthorPrivate = Boolean(reel.author?.isPrivate);
+  const isAuthor = viewerId && reel.author && String(reel.author._id) === String(viewerId);
+  const isFollowingAuthor = viewerId && reel.author?.followers
+    ? reel.author.followers.some((f) => String(f) === String(viewerId))
+    : false;
+
+  if (isAuthorPrivate && !isAuthor && !isFollowingAuthor) {
+    throw new AppError(403, "This reel is private. Follow this account to view their reels.");
   }
 
   return formatReel(reel, viewerId);
@@ -188,6 +217,12 @@ async function toggleReelLike(reelId, userId) {
 
   if (isLiked) {
     reel.likes.pull(userId);
+    await Notification.deleteMany({
+      recipient: reel.author,
+      actor: userId,
+      type: "like",
+      entityId: reel._id
+    });
   } else {
     reel.likes.addToSet(userId);
   }

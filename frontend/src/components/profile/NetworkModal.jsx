@@ -3,16 +3,23 @@ import { Link } from "react-router-dom";
 import Modal from "../common/Modal";
 import Button from "../common/Button";
 import api from "../../services/api";
-import { getAvatarForUser, getDisplayName } from "../../utils/helpers";
+import { getAvatarForUser, getDisplayName, isOwnResource } from "../../utils/helpers";
 import Loader from "../common/Loader";
 import { followService } from "../../services/followService";
+import { useAuth } from "../../hooks/useAuth";
 
 export default function NetworkModal({ open, onClose, targetUserId, type, title }) {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingIds, setPendingIds] = useState([]);
+  const [removingIds, setRemovingIds] = useState([]);
+
+  // Only show remove (×) when viewing own followers list
+  const isOwnFollowersList = type === 'followers' &&
+    currentUser && (String(currentUser.id || currentUser._id) === String(targetUserId));
 
   useEffect(() => {
     if (!open || !targetUserId) return;
@@ -32,7 +39,7 @@ export default function NetworkModal({ open, onClose, targetUserId, type, title 
           setUsers(res.data.data);
         }
       } catch (err) {
-        if (isMounted) setError("Failed to load users");
+        if (isMounted) setError(err.response?.data?.message || "Failed to load users");
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -56,6 +63,20 @@ export default function NetworkModal({ open, onClose, targetUserId, type, title 
       console.error(err);
     } finally {
       setPendingIds(prev => prev.filter(id => id !== user.id));
+    }
+  }
+
+  async function handleRemoveFollower(e, followerId) {
+    e.preventDefault();
+    if (removingIds.includes(followerId)) return;
+    setRemovingIds(prev => [...prev, followerId]);
+    try {
+      await followService.removeFollower(followerId);
+      setUsers(prev => prev.filter(u => u.id !== followerId));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRemovingIds(prev => prev.filter(id => id !== followerId));
     }
   }
 
@@ -89,35 +110,75 @@ export default function NetworkModal({ open, onClose, targetUserId, type, title 
             <p style={{ textAlign: 'center', color: 'var(--text-soft)', marginTop: '2rem' }}>No users found.</p>
           ) : (
             <div className="network-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {filteredUsers.map(u => (
-                <div key={u.id} className="suggestion-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Link to={`/profile/${u.username}`} onClick={onClose} className="suggestion-row__identity" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '12px', flex: 1, overflow: 'hidden', minWidth: 0 }}>
-                    <div className="story-ring" style={{ flexShrink: 0, padding: '2px', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', borderRadius: '50%' }}>
-                      <img src={getAvatarForUser(u, getDisplayName(u))} alt={u.username} className="suggestion-avatar" style={{ width: '48px', height: '48px', margin: 0, border: '2px solid var(--surface-card)' }} />
-                    </div>
-                    <div className="suggestion-info" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-                      <strong style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        {u.username}
-                        <span className="material-symbols-outlined" style={{ color: '#1d9bf0', fontSize: '14px' }}>verified</span>
-                      </strong>
-                      <span className="suggestion-bio" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-soft)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {getDisplayName(u)} {u.bio ? `| ${u.bio}` : ''}
-                      </span>
-                    </div>
-                  </Link>
+              {filteredUsers.map(u => {
+                const isSelf = isOwnResource(u.id || u._id || u, currentUser?.id || currentUser?._id || currentUser);
+                return (
+                  <div key={u.id} className="suggestion-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                    <Link to={`/profile/${u.username}`} onClick={onClose} className="suggestion-row__identity" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '12px', flex: 1, overflow: 'hidden', minWidth: 0 }}>
+                      <div className="story-ring" style={{ flexShrink: 0, padding: '2px', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', borderRadius: '50%' }}>
+                        <img src={getAvatarForUser(u, getDisplayName(u))} alt={u.username} className="suggestion-avatar" style={{ width: '48px', height: '48px', margin: 0, border: '2px solid var(--surface-card)' }} />
+                      </div>
+                      <div className="suggestion-info" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+                        <strong style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {u.username}
+                          <span className="material-symbols-outlined" style={{ color: '#1d9bf0', fontSize: '14px' }}>verified</span>
+                        </strong>
+                        <span className="suggestion-bio" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-soft)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {getDisplayName(u)} {u.bio ? `| ${u.bio}` : ''}
+                        </span>
+                      </div>
+                    </Link>
 
-                  <Button 
-                    size="sm" 
-                    variant={u.isFollowing ? "outline" : "primary"} 
-                    className="radius-full premium-btn" 
-                    style={{ whiteSpace: 'nowrap', minWidth: '95px', fontWeight: 'bold' }}
-                    onClick={(e) => handleToggleFollow(e, u)}
-                    disabled={pendingIds.includes(u.id)}
-                  >
-                    {pendingIds.includes(u.id) ? "..." : u.isFollowing ? "Following" : "Follow"}
-                  </Button>
-                </div>
-              ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                      {!isSelf && (
+                        <Button 
+                          size="sm" 
+                          variant={u.isFollowing ? "outline" : "primary"} 
+                          className="radius-full premium-btn" 
+                          style={{ whiteSpace: 'nowrap', minWidth: '90px', fontWeight: 'bold' }}
+                          onClick={(e) => handleToggleFollow(e, u)}
+                          disabled={pendingIds.includes(u.id)}
+                        >
+                          {pendingIds.includes(u.id) ? "..." : u.isFollowing ? "Following" : "Follow"}
+                        </Button>
+                      )}
+
+                      {isOwnFollowersList && !isSelf && (
+                        <button
+                          title="Remove follower"
+                          onClick={(e) => handleRemoveFollower(e, u.id)}
+                          disabled={removingIds.includes(u.id)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            border: '1px solid var(--surface-outline)',
+                            background: 'var(--surface-low)',
+                            color: 'var(--text-soft)',
+                            cursor: removingIds.includes(u.id) ? 'not-allowed' : 'pointer',
+                            flexShrink: 0,
+                            transition: 'all 0.15s ease',
+                            fontSize: '16px',
+                            lineHeight: 1,
+                            opacity: removingIds.includes(u.id) ? 0.5 : 1
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-low)'; e.currentTarget.style.color = 'var(--text-soft)'; e.currentTarget.style.borderColor = 'var(--surface-outline)'; }}
+                        >
+                          {removingIds.includes(u.id) ? (
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>hourglass_empty</span>
+                          ) : (
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

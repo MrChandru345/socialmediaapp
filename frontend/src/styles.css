@@ -2370,6 +2370,14 @@ strong {
   background: var(--background);
   padding: 0;
   flex-shrink: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.chat-sidebar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .chat-sidebar__header {
@@ -2772,6 +2780,14 @@ strong {
   flex: 1;
   overflow-y: auto;
   padding-top: 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.chat-conversations::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .conversation-card {
@@ -9844,6 +9860,7 @@ body.reels-page-active .sidebar:hover .user-chip {
   justify-content: space-between;
   padding: 0.85rem 1.25rem;
   background: var(--surface-glass);
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--surface-outline);
 }
@@ -10167,4 +10184,157 @@ body.reels-page-active .sidebar:hover .user-chip {
 .empty-post-state span {
   font-size: 3.5rem;
   color: var(--text-soft);
+}
+
+/* Active Users Tray (Message Page - Below Search Bar) */
+.active-users-tray {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--surface-outline);
+  background: var(--surface);
+}
+
+.active-users-tray__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.active-users-tray__title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-soft);
+}
+
+.active-users-count-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.active-users-tray__list {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.active-users-tray__list::-webkit-scrollbar {
+  display: none;
+}
+
+.active-user-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  width: 56px;
+  transition: transform 0.15s ease;
+}
+
+.active-user-item:hover {
+  transform: translateY(-2px);
+}
+
+.active-user-avatar-wrapper {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  padding: 2px;
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.active-user-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--surface);
+}
+
+.active-green-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  background-color: #10b981;
+  border: 2.5px solid var(--surface);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+.active-user-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text);
+  max-width: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* Pull-To-Refresh Component Styles */
+.pull-to-refresh-container {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+}
+
+.pull-indicator {
+  position: fixed;
+  top: 48px;
+  left: 50%;
+  z-index: 9999;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface-glass, rgba(20, 20, 25, 0.92));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--surface-outline, rgba(255, 255, 255, 0.15));
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.pull-gradient-spinner {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  padding: 2.5px;
+  background: conic-gradient(from 0deg, #ff8a5c, #f2317a, #7c4dff, #3d6fff, #ff8a5c);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 0);
+  transition: transform 0.1s linear;
+}
+
+.pull-indicator--refreshing .pull-gradient-spinner {
+  animation: spin 0.85s linear infinite;
+}
+
+/* Post Modal Emoji Popover */
+.post-modal-emoji-popover {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 0;
+  z-index: 10000;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--surface-outline, rgba(255, 255, 255, 0.15));
 }

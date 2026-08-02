@@ -62,6 +62,14 @@ export default function Profile() {
   useEffect(() => {
     if (!profileIdentifier) return;
     loadProfile();
+
+    function handlePullRefresh(e) {
+      if (e.detail?.pathname?.includes("/profile")) {
+        loadProfile();
+      }
+    }
+    window.addEventListener("app:pull-refresh", handlePullRefresh);
+    return () => window.removeEventListener("app:pull-refresh", handlePullRefresh);
   }, [profileIdentifier]);
 
   useEffect(() => {
@@ -137,7 +145,12 @@ export default function Profile() {
 
     try {
       const result = await followService.toggle(state.profile.id);
-      const posts = await userService.getPosts(profileIdentifier, { limit: 12 });
+      let posts = { items: [], meta: null };
+      try {
+        posts = await userService.getPosts(profileIdentifier, { limit: 12 });
+      } catch (e) {
+        // Safe fallback for private profiles
+      }
 
       setState((currentState) => ({
         ...currentState,
@@ -147,7 +160,8 @@ export default function Profile() {
           ? {
               ...currentState.profile,
               followersCount: result.followersCount,
-              isFollowing: result.following
+              isFollowing: result.following,
+              isRequested: result.requested
             }
           : currentState.profile
       }));
@@ -411,40 +425,82 @@ export default function Profile() {
           onShareProfile={handleShareProfile}
           onMessage={() => navigate(`/chat?userId=${state.profile.id}`)}
           onCreatePost={handleCreationChoice}
-          onFollowersClick={() => setNetworkModal({ open: true, type: 'followers', title: 'Followers' })}
-          onFollowingClick={() => setNetworkModal({ open: true, type: 'following', title: 'Following' })}
+          onFollowersClick={(isOwnProfile || !state.profile?.isPrivate || state.profile?.isFollowing) ? () => setNetworkModal({ open: true, type: 'followers', title: 'Followers' }) : undefined}
+          onFollowingClick={(isOwnProfile || !state.profile?.isPrivate || state.profile?.isFollowing) ? () => setNetworkModal({ open: true, type: 'following', title: 'Following' }) : undefined}
         />
 
         <div className="profile-page-feed-container" style={{ width: '100%', maxWidth: '100%', marginTop: '1.5rem' }}>
-          <section className="profile-feed" style={{ width: '100%' }}>
-            <ProfileTabs activeTab={activeTab} onTabChange={setActiveTab} isOwnProfile={isOwnProfile} />
-            
-            <div key={activeTab} className="tab-content-wrapper animate-slide-up">
-              <PostGrid 
-                posts={
-                  activeTab === 'saved' 
-                    ? state.savedPosts 
-                    : (activeTab === 'reels' 
-                        ? state.reels 
-                        : [...state.posts, ...state.reels].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()))
-                } 
-                isOwnProfile={isOwnProfile} 
-                onCreatePost={handleCreationChoice} 
-                activeTab={activeTab}
-                onPostClick={(post) => {
-                  const targetId = post?.id || post?._id;
-                  if (isReel(post)) {
-                    navigate(`/reels?reelId=${targetId}`);
-                  } else if (window.innerWidth <= 768) {
-                    navigate(`/post/${targetId}`);
-                  } else {
-                    setSelectedPost(post);
-                  }
+          {state.profile.isPrivate && !isOwnProfile && !state.profile.isFollowing ? (
+            <div 
+              className="private-account-lock-container modern-glass radius-xl"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "4rem 1.5rem",
+                textAlign: "center",
+                gap: "1rem",
+                margin: "1.5rem 0 3rem 0",
+                background: "var(--surface-card)",
+                border: "1px solid var(--surface-outline)"
+              }}
+            >
+              <div 
+                style={{
+                  width: "64px",
+                  height: "64px",
+                  borderRadius: "50%",
+                  border: "2px solid var(--text)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
                 }}
-                status={activeTab === 'saved' ? state.savedStatus : 'ready'}
-              />
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "36px", color: "var(--text)" }}>
+                  lock
+                </span>
+              </div>
+              <div>
+                <h3 style={{ margin: "0 0 0.25rem 0", fontSize: "1.1rem", fontWeight: 700, color: "var(--text)" }}>
+                  This Account is Private
+                </h3>
+                <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-soft)" }}>
+                  Follow this account to see their photos and videos.
+                </p>
+              </div>
             </div>
-          </section>
+          ) : (
+            <section className="profile-feed" style={{ width: '100%' }}>
+              <ProfileTabs activeTab={activeTab} onTabChange={setActiveTab} isOwnProfile={isOwnProfile} />
+              
+              <div key={activeTab} className="tab-content-wrapper animate-slide-up">
+                <PostGrid 
+                  posts={
+                    activeTab === 'saved' 
+                      ? state.savedPosts 
+                      : (activeTab === 'reels' 
+                          ? state.reels 
+                          : [...state.posts, ...state.reels].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()))
+                  } 
+                  isOwnProfile={isOwnProfile} 
+                  onCreatePost={handleCreationChoice} 
+                  activeTab={activeTab}
+                  onPostClick={(post) => {
+                    const targetId = post?.id || post?._id;
+                    if (isReel(post)) {
+                      navigate(`/reels?reelId=${targetId}`);
+                    } else if (window.innerWidth <= 768) {
+                      navigate(`/post/${targetId}`);
+                    } else {
+                      setSelectedPost(post);
+                    }
+                  }}
+                  status={activeTab === 'saved' ? state.savedStatus : 'ready'}
+                />
+              </div>
+            </section>
+          )}
         </div>
       </div>
 

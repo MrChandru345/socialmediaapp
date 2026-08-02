@@ -15,7 +15,7 @@ import {
 import Button from "../common/Button";
 import Loader from "../common/Loader";
 
-export default function CommentSection({ count, onCountChange, postId }) {
+export default function CommentSection({ count, onCountChange, postId, postAuthorId }) {
   const { user } = useAuth();
   const [comments, setComments] = useState([]);
   const [draft, setDraft] = useState("");
@@ -122,6 +122,8 @@ export default function CommentSection({ count, onCountChange, postId }) {
             ? comments.map((comment) => {
                 const commentId = getCommentId(comment);
                 const isOwnComment = isOwnResource(comment?.author?.id || comment?.author?._id || comment?.author, user?.id || user?._id || user);
+                const isPostAuthor = postAuthorId && isOwnResource(postAuthorId, user?.id || user?._id || user);
+                const canDeleteComment = isOwnComment || isPostAuthor;
                 const authorUsername = typeof comment.author === 'object'
                   ? (comment.author?.username || comment.author?.id || comment.author?._id)
                   : comment.author;
@@ -145,7 +147,7 @@ export default function CommentSection({ count, onCountChange, postId }) {
                       </p>
                       <div className="comment-item__meta">
                         <span>{getCommentMeta(comment)}</span>
-                        {isOwnComment ? (
+                        {canDeleteComment ? (
                           <div style={{ position: "relative", display: "inline-block", marginLeft: "auto" }}>
                             <button
                               aria-label="Delete comment"

@@ -55,6 +55,14 @@ export default function Home() {
 
   useEffect(() => {
     loadHome();
+
+    function handlePullRefresh(e) {
+      if (!e.detail?.pathname || e.detail.pathname === "/") {
+        loadHome();
+      }
+    }
+    window.addEventListener("app:pull-refresh", handlePullRefresh);
+    return () => window.removeEventListener("app:pull-refresh", handlePullRefresh);
   }, []);
 
   useEffect(() => {
@@ -195,10 +203,19 @@ export default function Home() {
     setState((currentState) => ({ ...currentState, error: "" }));
 
     try {
-      await followService.toggle(userId);
+      const result = await followService.toggle(userId);
       setState((currentState) => ({
         ...currentState,
-        suggestions: currentState.suggestions.filter((suggestion) => suggestion.id !== userId)
+        suggestions: currentState.suggestions.map((suggestion) => {
+          if (suggestion.id === userId || suggestion._id === userId) {
+            return {
+              ...suggestion,
+              isFollowing: result.following,
+              isRequested: result.requested
+            };
+          }
+          return suggestion;
+        })
       }));
     } catch (caughtError) {
       setState((currentState) => ({
@@ -288,12 +305,18 @@ export default function Home() {
                       </div>
                     </Link>
                     <button
-                      className="mini-action mini-action--capsule"
+                      className={`mini-action mini-action--capsule ${(suggestion.isFollowing || suggestion.isRequested) ? "following" : ""}`}
                       disabled={pendingFollowIds.includes(suggestion.id)}
                       onClick={() => handleFollow(suggestion.id)}
                       type="button"
                     >
-                      {pendingFollowIds.includes(suggestion.id) ? "Following..." : "Follow"}
+                      {pendingFollowIds.includes(suggestion.id)
+                        ? "Updating..."
+                        : suggestion.isRequested
+                        ? "Requested"
+                        : suggestion.isFollowing
+                        ? "Following"
+                        : "Follow"}
                     </button>
                   </div>
                 ))}

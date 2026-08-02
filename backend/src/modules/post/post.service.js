@@ -3,6 +3,7 @@ const { AppError, buildPaginationMeta, normalizeMediaInput, parsePagination, san
 const { createNotification } = require("../notification/notification.service");
 const User = require("../user/user.model");
 const Post = require("./post.model");
+const Notification = require("../notification/notification.model");
 
 async function uploadMediaFiles(files, folder) {
   if (!files?.length) {
@@ -45,6 +46,7 @@ function formatAuthor(author, viewerId) {
     avatar: user.avatar,
     location: user.location,
     role: user.role,
+    isPrivate: Boolean(user.isPrivate),
     followersCount: user.followers?.length || 0,
     isFollowing: viewerId
       ? user.followers?.some((entry) => String(entry) === String(viewerId))
@@ -94,17 +96,21 @@ async function createPost(userId, payload, files) {
 
 async function getFeed(userId, query) {
   const { page, limit, skip } = parsePagination(query);
-  const currentUser = await User.findById(userId).select("following").lean();
+  const [currentUser, privateUsers] = await Promise.all([
+    User.findById(userId).select("following").lean(),
+    User.find({ isPrivate: true }).select("_id").lean()
+  ]);
 
   if (!currentUser) {
     throw new AppError(404, "User not found");
   }
 
-  const authorIds = [userId, ...(currentUser.following || [])];
+  const privateUserIds = privateUsers.map((u) => u._id);
   const filter = {
     $or: [
-      { visibility: "public" },
-      { author: { $in: authorIds } }
+      { author: userId },
+      { author: { $in: currentUser.following || [] } },
+      { author: { $nin: privateUserIds }, visibility: "public" }
     ]
   };
 
@@ -113,7 +119,7 @@ async function getFeed(userId, query) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("author", "username fullName avatar location role followers")
+      .populate("author", "username fullName avatar location role followers isPrivate")
       .lean(),
     Post.countDocuments(filter)
   ]);
@@ -126,14 +132,28 @@ async function getFeed(userId, query) {
 
 async function getExplorePosts(query, viewerId) {
   const { page, limit, skip } = parsePagination(query);
-  const filter = { visibility: "public" };
+  const [currentUser, privateUsers] = await Promise.all([
+    viewerId ? User.findById(viewerId).select("following").lean() : null,
+    User.find({ isPrivate: true }).select("_id").lean()
+  ]);
+
+  const privateUserIds = privateUsers.map((u) => u._id);
+  const followingIds = currentUser?.following || [];
+
+  const filter = {
+    $or: [
+      { author: viewerId },
+      { author: { $in: followingIds } },
+      { author: { $nin: privateUserIds }, visibility: "public" }
+    ]
+  };
 
   const [posts, total] = await Promise.all([
     Post.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("author", "username fullName avatar location role followers")
+      .populate("author", "username fullName avatar location role followers isPrivate")
       .lean(),
     Post.countDocuments(filter)
   ]);
@@ -146,11 +166,25 @@ async function getExplorePosts(query, viewerId) {
 
 async function getPostById(postId, viewerId) {
   const post = await Post.findById(postId)
-    .populate("author", "username fullName avatar location role followers")
+    .populate("author", "username fullName avatar location role followers isPrivate")
     .lean();
 
   if (!post) {
     throw new AppError(404, "Post not found");
+  }
+
+  const isAuthorPrivate = Boolean(post.author?.isPrivate);
+  const isAuthor = viewerId && post.author && String(post.author._id) === String(viewerId);
+  const isFollowingAuthor = viewerId && post.author?.followers
+    ? post.author.followers.some((f) => String(f) === String(viewerId))
+    : false;
+
+  if (post.visibility === "followers" && !isAuthor && !isFollowingAuthor) {
+    throw new AppError(403, "This post is for followers only. Follow this account to view their posts.");
+  }
+
+  if (isAuthorPrivate && !isAuthor && !isFollowingAuthor) {
+    throw new AppError(403, "This post is private. Follow this account to view their posts.");
   }
 
   return formatPost(post, viewerId);
@@ -167,6 +201,12 @@ async function toggleLike(postId, userId) {
 
   if (isLiked) {
     post.likes.pull(userId);
+    await Notification.deleteMany({
+      recipient: post.author,
+      actor: userId,
+      type: "like",
+      entityId: post._id
+    });
   } else {
     post.likes.addToSet(userId);
   }

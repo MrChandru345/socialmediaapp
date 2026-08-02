@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import EmojiPicker from "emoji-picker-react";
 import ShareModal from "../common/ShareModal";
 import ConfirmModal from "../common/ConfirmModal";
 import CommentIcon from "../common/CommentIcon";
@@ -77,6 +78,20 @@ export default function PostModal({ post, open, onClose, onPostUpdated, isBottom
   const [isDeletePending, setIsDeletePending] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (emojiRef.current && !emojiRef.current.contains(e.target)) {
+        setShowEmojiPicker(false);
+      }
+    }
+    if (showEmojiPicker) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showEmojiPicker]);
 
   useEffect(() => {
     if (post && open) {
@@ -304,6 +319,8 @@ export default function PostModal({ post, open, onClose, onPostUpdated, isBottom
               comments.map(comment => {
                 const cid = getCommentId(comment);
                 const isOwn = isOwnResource(comment?.author?.id || comment?.author?._id || comment?.author, user?.id || user?._id || user);
+                const isPostAuthor = isOwnResource(currentPost?.author?.id || currentPost?.author?._id || currentPost?.author, user?.id || user?._id || user);
+                const canDelete = isOwn || isPostAuthor;
                 const authorUsername = typeof comment.author === 'object'
                   ? (comment.author?.username || comment.author?.id || comment.author?._id)
                   : comment.author;
@@ -329,7 +346,7 @@ export default function PostModal({ post, open, onClose, onPostUpdated, isBottom
                         <span className="thread-time">{getCommentMeta(comment)}</span>
                       </div>
                     </div>
-                    {isOwn && (
+                    {canDelete && (
                       <ContentMenu onDelete={() => handleDeleteComment(cid)} />
                     )}
                   </div>
@@ -374,8 +391,32 @@ export default function PostModal({ post, open, onClose, onPostUpdated, isBottom
           </div>
 
           {/* Comment input */}
-          <form className="post-modal-form" onSubmit={handleCommentSubmit}>
-            <span className="material-symbols-outlined emoji-btn">mood</span>
+          <form className="post-modal-form" onSubmit={handleCommentSubmit} style={{ position: 'relative' }}>
+            <div ref={emojiRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setShowEmojiPicker((prev) => !prev)}
+                title="Add Emoji"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+              >
+                <span className="material-symbols-outlined emoji-btn">mood</span>
+              </button>
+
+              {showEmojiPicker && (
+                <div className="post-modal-emoji-popover">
+                  <EmojiPicker
+                    onEmojiClick={(emojiData) => {
+                      setDraft((prev) => prev + emojiData.emoji);
+                    }}
+                    theme="auto"
+                    width={290}
+                    height={340}
+                  />
+                </div>
+              )}
+            </div>
+
             <input
               id="modal-comment-input"
               type="text"

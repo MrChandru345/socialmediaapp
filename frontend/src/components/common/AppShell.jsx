@@ -11,6 +11,7 @@ import { postService } from "../../services/postService";
 import NotificationBell from "../notification/NotificationBell";
 import NotificationCenter from "../notification/NotificationCenter";
 import PostModal from "../post/PostModal";
+import PullToRefresh from "./PullToRefresh";
 import Button from "./Button";
 import AccountSwitcher from "./AccountSwitcher";
 import ReelIcon from "./ReelIcon";
@@ -390,6 +391,15 @@ export default function AppShell({ children }) {
               <span>Curator</span>
             </div>
             <div className="topbar-tools">
+              <button 
+                className="icon-button" 
+                onClick={() => window.location.reload()} 
+                title="Refresh Page"
+                aria-label="Refresh Page"
+                type="button"
+              >
+                <span className="material-symbols-outlined">refresh</span>
+              </button>
               <button className="icon-button" onClick={openPostComposer} type="button">
                 <span className="material-symbols-outlined">add_box</span>
               </button>
@@ -397,7 +407,9 @@ export default function AppShell({ children }) {
             </div>
           </header>
 
-          <main className="shell-content">{children}</main>
+          <main className="shell-content">
+            <PullToRefresh>{children}</PullToRefresh>
+          </main>
 
           <nav aria-label="Mobile navigation" className="mobile-nav">
             {mobileNavItems.map((item) => (

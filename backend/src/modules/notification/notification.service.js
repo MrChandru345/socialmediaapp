@@ -21,7 +21,28 @@ async function createNotification(payload) {
     return null;
   }
 
-  const notification = await Notification.create(payload);
+  let notification;
+  if (payload.type === "follow" || payload.type === "follow_request") {
+    notification = await Notification.findOneAndUpdate(
+      {
+        recipient: payload.recipient,
+        actor: payload.actor,
+        type: payload.type
+      },
+      {
+        $set: {
+          message: payload.message || "",
+          entityId: payload.entityId,
+          entityModel: payload.entityModel,
+          isRead: false
+        }
+      },
+      { upsert: true, new: true }
+    );
+  } else {
+    notification = await Notification.create(payload);
+  }
+
   const populatedNotification = await Notification.findById(notification._id)
     .populate("actor", "username fullName avatar role")
     .lean();

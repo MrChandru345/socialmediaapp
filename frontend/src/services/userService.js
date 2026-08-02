@@ -26,10 +26,11 @@ export const userService = {
   async updateMyProfile(payload) {
     if (payload.file) {
       const formData = new FormData();
-      formData.append("fullName", payload.fullName || "");
-      formData.append("bio", payload.bio || "");
-      formData.append("website", payload.website || "");
-      formData.append("location", payload.location || "");
+      if (payload.fullName !== undefined) formData.append("fullName", payload.fullName);
+      if (payload.bio !== undefined) formData.append("bio", payload.bio);
+      if (payload.website !== undefined) formData.append("website", payload.website);
+      if (payload.location !== undefined) formData.append("location", payload.location);
+      if (payload.isPrivate !== undefined) formData.append("isPrivate", payload.isPrivate);
       formData.append("avatar", payload.file);
 
       if (payload.avatarUrl) {
@@ -40,15 +41,11 @@ export const userService = {
       return response.data.data;
     }
 
-    const response = await api.patch("/users/me", {
-      avatarUrl: payload.avatarUrl || "",
-      bio: payload.bio || "",
-      fullName: payload.fullName || "",
-      location: payload.location || "",
-      website: payload.website || ""
-    });
-
+    const response = await api.patch("/users/me", payload);
     return response.data.data;
+  },
+  async updateProfile(payload) {
+    return this.updateMyProfile(payload);
   },
   async blockUser(id) {
     const response = await api.post(`/users/${id}/block`);

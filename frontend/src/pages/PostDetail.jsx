@@ -339,6 +339,32 @@ export default function PostDetail() {
     );
   }
 
+  const isOwnAuthor = user && post && isOwnResource(post.author?.id || post.author?._id || post.author, user.id || user._id || user);
+  const isAuthorPrivate = Boolean(post.author?.isPrivate);
+
+  if (isAuthorPrivate && !isOwnAuthor && !isFollowingAuthor) {
+    return (
+      <div className="single-post-view single-post-view--empty">
+        <header className="single-post-header">
+          <button className="icon-button" onClick={() => navigate(-1)} type="button">
+            <ArrowLeft size={22} />
+          </button>
+          <h2>Private Post</h2>
+          <div style={{ width: 24 }} />
+        </header>
+        <div className="empty-post-state" style={{ gap: "0.75rem", paddingTop: "4rem" }}>
+          <div style={{ width: "64px", height: "64px", borderRadius: "50%", border: "2px solid var(--text)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span className="material-symbols-outlined" style={{ fontSize: "36px" }}>lock</span>
+          </div>
+          <h3 style={{ margin: 0, fontWeight: 700 }}>This Post is Private</h3>
+          <p style={{ margin: 0, color: "var(--text-soft)", fontSize: "0.9rem" }}>
+            Follow <strong>@{post.author?.username}</strong> to view their photos and videos.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const mediaList = Array.isArray(post.media) && post.media.length > 0
     ? post.media
     : (post.video ? [post.video] : (post.media ? [post.media] : []));
@@ -518,7 +544,8 @@ export default function PostDetail() {
               {comments.map((comment) => {
                 const commentId = getCommentId(comment);
                 const commentAuthorName = getCommentAuthorLabel(comment);
-                const canDelete = isOwnResource(comment.author?.id || comment.author?._id || comment.author, user?.id || user?._id || user);
+                const isOwnComment = isOwnResource(comment.author?.id || comment.author?._id || comment.author, user?.id || user?._id || user);
+                const canDelete = isOwnComment || isOwnPost;
                 const authorUsername = typeof comment.author === 'object'
                   ? (comment.author?.username || comment.author?.id || comment.author?._id)
                   : comment.author;

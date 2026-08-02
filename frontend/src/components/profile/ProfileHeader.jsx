@@ -98,10 +98,10 @@ export default function ProfileHeader({
                     disabled={isFollowPending}
                     onClick={onToggleFollow}
                     size="sm"
-                    variant={profile.isFollowing ? "outline" : "primary"}
+                    variant={profile.isFollowing || profile.isRequested ? "outline" : "primary"}
                     className="radius-full premium-btn"
                   >
-                    {isFollowPending ? "..." : profile.isFollowing ? "Following" : "Follow"}
+                    {isFollowPending ? "..." : profile.isFollowing ? "Following" : profile.isRequested ? "Requested" : "Follow"}
                   </Button>
                   <Button onClick={onMessage} size="sm" variant="outline" className="radius-full premium-btn">
                     Message
@@ -270,10 +270,10 @@ export default function ProfileHeader({
                 disabled={isFollowPending}
                 onClick={onToggleFollow}
                 size="sm"
-                variant={profile.isFollowing ? "outline" : "primary"}
+                variant={profile.isFollowing || profile.isRequested ? "outline" : "primary"}
                 className="profile-mobile-btn"
               >
-                {isFollowPending ? "..." : profile.isFollowing ? "Following" : "Follow"}
+                {isFollowPending ? "..." : profile.isFollowing ? "Following" : profile.isRequested ? "Requested" : "Follow"}
               </Button>
               <Button onClick={onMessage} size="sm" variant="outline" className="profile-mobile-btn">
                 Message
