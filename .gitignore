@@ -24,3 +24,12 @@ BACKEND FILE STRUCTURE.md
 FRONTEND FILE STRUCTURE.md
 SKILL.md
 UI/
+
+# Unwanted / Deprecated Files
+backend/scripts/remove-maddy-website.js
+frontend/src/assets/icons/send.png
+frontend/src/assets/mockData.js
+frontend/src/components/profile/FollowingList.jsx
+*.out.log
+*.err.log
+

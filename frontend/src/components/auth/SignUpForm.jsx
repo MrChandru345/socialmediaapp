@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getAuthErrorMessage,
+  getPasswordChecks,
   validateEmail,
   validatePassword,
   validateUsername
@@ -130,6 +131,24 @@ export default function SignUpForm({ onSwitch }) {
         onChange={(e) => updateField('password', e.target.value)}
         required
       />
+
+      {formData.password && (
+        <div className="grid grid-cols-2 gap-1.5 px-2 py-1.5 text-[11px] font-medium bg-white/5 border border-white/10 rounded-xl my-1">
+          {getPasswordChecks(formData.password, { username: formData.username, email: formData.email }).map((check) => (
+            <div
+              key={check.id}
+              className={`flex items-center gap-1.5 transition-colors ${
+                check.valid ? 'text-emerald-400' : 'text-white/40'
+              }`}
+            >
+              <span className="text-[12px] font-bold">
+                {check.valid ? '✓' : '✕'}
+              </span>
+              <span>{check.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <Field
         label="Confirm Password"
         isPassword
