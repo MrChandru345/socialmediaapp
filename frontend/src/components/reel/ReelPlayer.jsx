@@ -254,6 +254,9 @@ export default function ReelPlayer({ reel, onPostClick }) {
             poster={reel.poster || reel.video?.url}
             loop
             playsInline
+            controlsList="nodownload noremoteplayback noplaybackrate"
+            disablePictureInPicture
+            disableRemotePlayback
           />
 
           {!isPlaying && (
