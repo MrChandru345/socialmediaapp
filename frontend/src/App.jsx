@@ -1,20 +1,22 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import AppShell from "./components/common/AppShell";
 import Loader from "./components/common/Loader";
 import { useAuth } from "./hooks/useAuth";
-import Admin from "./pages/Admin";
-import Chat from "./pages/Chat";
-import Explore from "./pages/Explore";
-import Home from "./pages/Home";
-import ForgotPassword from "./pages/auth/ForgotPassword";
-import AuthPage from "./components/auth/AuthPage";
-import Profile from "./pages/Profile";
-import Settings from "./pages/Settings";
-import PostDetail from "./pages/PostDetail";
-import Reels from "./pages/Reels";
-import ResetPassword from "./pages/auth/ResetPassword";
-import VerifyEmail from "./pages/auth/VerifyEmail";
+
+const Home = lazy(() => import("./pages/Home"));
+const AuthPage = lazy(() => import("./components/auth/AuthPage"));
+const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/auth/ResetPassword"));
+const VerifyEmail = lazy(() => import("./pages/auth/VerifyEmail"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Chat = lazy(() => import("./pages/Chat"));
+const Explore = lazy(() => import("./pages/Explore"));
+const Reels = lazy(() => import("./pages/Reels"));
+const PostDetail = lazy(() => import("./pages/PostDetail"));
+const Admin = lazy(() => import("./pages/Admin"));
 
 function ProtectedPage({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -51,7 +53,8 @@ function PublicPage({ children }) {
 
 export default function App() {
   return (
-    <Routes>
+    <Suspense fallback={<Loader />}>
+      <Routes>
       <Route
         path="/login"
         element={
@@ -159,5 +162,6 @@ export default function App() {
       />
       <Route path="*" element={<Navigate replace to="/" />} />
     </Routes>
+  </Suspense>
   );
 }
