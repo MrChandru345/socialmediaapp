@@ -23,15 +23,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin || env.clientOrigin === "*" || env.clientOrigin === origin) {
-        return callback(null, true);
-      }
-      if (origin.endsWith(".vercel.app") || origin.endsWith(".onrender.com") || origin.includes("localhost")) {
-        return callback(null, true);
-      }
-      return callback(null, true);
-    },
+    origin: (origin, callback) => callback(null, true),
     credentials: true,
   })
 );

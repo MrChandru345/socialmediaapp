@@ -377,14 +377,14 @@ export default function ChatBox() {
 
     if (!isTyping) {
       setIsTyping(true);
-      socket.emit("chat:typing", { toUserId: activeConversationId, isTyping: true });
+      socket?.emit("chat:typing", { toUserId: activeConversationId, isTyping: true });
     }
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      socket.emit("chat:typing", { toUserId: activeConversationId, isTyping: false });
+      socket?.emit("chat:typing", { toUserId: activeConversationId, isTyping: false });
     }, 3000);
   }
 
@@ -411,7 +411,7 @@ export default function ChatBox() {
       setDraft("");
       setIsTyping(false);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      socket.emit("chat:typing", { toUserId: activeConversationId, isTyping: false });
+      socket?.emit("chat:typing", { toUserId: activeConversationId, isTyping: false });
 
       const payload = { body, file: selectedFile || audioBlob };
       if (replyingToMessage) {
