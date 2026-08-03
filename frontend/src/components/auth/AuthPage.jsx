@@ -5,7 +5,7 @@ import AuthCard from './AuthCard'
 import SplashScreen from './SplashScreen'
 import AmbientBackground from './AmbientBackground'
 
-const SPLASH_DURATION = 1800
+const SPLASH_DURATION = 300
 
 export default function AuthPage({ initialTab = 'signin' }) {
   const [showSplash, setShowSplash] = useState(true)
