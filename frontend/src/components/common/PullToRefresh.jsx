@@ -12,6 +12,7 @@ export default function PullToRefresh({ children, onRefresh }) {
   const PULL_THRESHOLD = 65;
 
   const handleStart = (clientY) => {
+    if (location.pathname.startsWith("/reels") || location.pathname.startsWith("/chat")) return;
     const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
     if (scrollTop <= 5 && !isRefreshing) {
       startYRef.current = clientY;
@@ -20,7 +21,7 @@ export default function PullToRefresh({ children, onRefresh }) {
   };
 
   const handleMove = (clientY, e) => {
-    if (!isPullingRef.current || isRefreshing) return;
+    if (location.pathname.startsWith("/reels") || location.pathname.startsWith("/chat") || !isPullingRef.current || isRefreshing) return;
     const diff = clientY - startYRef.current;
     const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
 
