@@ -9771,12 +9771,17 @@ body.reels-page-active .sidebar:hover .user-chip {
 
   body.reels-page-active .reels-loading,
   body.reels-page-active .reels-container .empty-state {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
     width: 100% !important;
     height: 100% !important;
-    min-height: 100% !important;
+    min-height: 100vh !important;
     margin: 0 !important;
     background: #000 !important;
     color: #fff !important;
+    text-align: center !important;
   }
 
   /* Overlays on Mobile (Comment & Action modals) */
