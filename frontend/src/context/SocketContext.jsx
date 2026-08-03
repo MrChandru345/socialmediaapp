@@ -6,7 +6,9 @@ import { useAuthContext } from "./AuthContext";
 const SocketContext = createContext(null);
 
 function resolveSocketBaseUrl() {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const isProductionDomain = typeof window !== "undefined" && !window.location.hostname.includes("localhost") && !window.location.hostname.includes("127.0.0.1");
+  const defaultUrl = isProductionDomain ? "https://curator-backend-6v9x.onrender.com/api" : "http://localhost:5000/api";
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || defaultUrl;
   return apiBaseUrl.replace(/\/api\/?$/, "");
 }
 
