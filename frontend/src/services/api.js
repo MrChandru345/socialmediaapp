@@ -2,7 +2,11 @@ import axios from "axios";
 
 const TOKEN_KEY = "curator-auth-token";
 const REFRESH_TOKEN_KEY = "curator-refresh-token";
-const DEFAULT_BASE_URL = "http://localhost:5000/api";
+const isProductionDomain = typeof window !== "undefined" && !window.location.hostname.includes("localhost") && !window.location.hostname.includes("127.0.0.1");
+
+const DEFAULT_BASE_URL = isProductionDomain 
+  ? "https://curator-backend-6v9x.onrender.com/api" 
+  : "http://localhost:5000/api";
 
 export const AUTH_TOKEN_REFRESHED_EVENT = "curator:auth-token-refreshed";
 export const AUTH_SESSION_EXPIRED_EVENT = "curator:auth-session-expired";
