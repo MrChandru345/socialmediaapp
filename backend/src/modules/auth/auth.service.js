@@ -286,9 +286,15 @@ async function requestPasswordReset(email) {
   const rawToken = crypto.randomBytes(32).toString("hex");
   const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
 
-  user.resetPasswordToken = hashedToken;
-  user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
-  await user.save();
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        resetPasswordToken: hashedToken,
+        resetPasswordExpires: Date.now() + 15 * 60 * 1000
+      }
+    }
+  );
 
   const frontendUrl = process.env.FRONTEND_URL || "https://socialmediaapp-nine-mu.vercel.app";
   const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
