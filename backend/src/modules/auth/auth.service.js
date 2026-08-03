@@ -310,57 +310,62 @@ async function requestPasswordReset(email) {
     </div>
   `;
 
-  let emailSent = false;
+  // Dispatch email delivery in background without blocking HTTP response
+  const sendEmailAsync = async () => {
+    let emailSent = false;
 
-  if (resendApiKey) {
-    try {
-      const { Resend } = require("resend");
-      const resendClient = new Resend(resendApiKey.trim());
-      const { data, error: resendErr } = await resendClient.emails.send({
-        from: "Curator <onboarding@resend.dev>",
-        to: [user.email],
-        subject: "Reset Your Curator Password",
-        html: emailHtml
-      });
-      if (resendErr) {
-        console.error("Resend API Error details:", resendErr);
-      } else if (data?.id) {
-        emailSent = true;
-        console.log("Resend email sent successfully:", data.id);
-      }
-    } catch (err) {
-      console.error("Resend Email Delivery Exception:", err);
-    }
-  }
-
-  if (!emailSent && smtpUser && smtpPass) {
-    try {
-      const nodemailer = require("nodemailer");
-      const cleanedPass = String(smtpPass).replace(/\s+/g, "");
-      const cleanedUser = String(smtpUser).trim();
-
-      const transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 465,
-        secure: true,
-        auth: {
-          user: cleanedUser,
-          pass: cleanedPass
+    if (resendApiKey) {
+      try {
+        const { Resend } = require("resend");
+        const resendClient = new Resend(resendApiKey.trim());
+        const { data, error: resendErr } = await resendClient.emails.send({
+          from: "Curator <onboarding@resend.dev>",
+          to: [user.email],
+          subject: "Reset Your Curator Password",
+          html: emailHtml
+        });
+        if (resendErr) {
+          console.error("Resend API Error details:", resendErr);
+        } else if (data?.id) {
+          emailSent = true;
+          console.log("Resend email sent successfully:", data.id);
         }
-      });
-
-      await transporter.sendMail({
-        from: `"Curator App" <${cleanedUser}>`,
-        to: user.email,
-        subject: "Reset Your Curator Password",
-        html: emailHtml
-      });
-      emailSent = true;
-      console.log("Gmail SMTP email sent successfully via Nodemailer");
-    } catch (err) {
-      console.error("Nodemailer Gmail SMTP Error:", err);
+      } catch (err) {
+        console.error("Resend Email Delivery Exception:", err);
+      }
     }
-  }
+
+    if (!emailSent && smtpUser && smtpPass) {
+      try {
+        const nodemailer = require("nodemailer");
+        const cleanedPass = String(smtpPass).replace(/\s+/g, "");
+        const cleanedUser = String(smtpUser).trim();
+
+        const transporter = nodemailer.createTransport({
+          host: "smtp.gmail.com",
+          port: 465,
+          secure: true,
+          auth: {
+            user: cleanedUser,
+            pass: cleanedPass
+          }
+        });
+
+        await transporter.sendMail({
+          from: `"Curator App" <${cleanedUser}>`,
+          to: user.email,
+          subject: "Reset Your Curator Password",
+          html: emailHtml
+        });
+        emailSent = true;
+        console.log("Gmail SMTP email sent successfully via Nodemailer");
+      } catch (err) {
+        console.error("Nodemailer Gmail SMTP Error:", err);
+      }
+    }
+  };
+
+  sendEmailAsync().catch((err) => console.error("Async Email Dispatch Error:", err));
 
   return {
     delivery: "email",
