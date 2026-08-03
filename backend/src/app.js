@@ -1,4 +1,5 @@
 const cors = require("cors");
+const compression = require("compression");
 const express = require("express");
 const morgan = require("morgan");
 
