@@ -70,6 +70,16 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    resetPasswordToken: {
+      type: String,
+      default: null,
+      select: false
+    },
+    resetPasswordExpires: {
+      type: Date,
+      default: null,
+      select: false
+    },
     isPrivate: {
       type: Boolean,
       default: false

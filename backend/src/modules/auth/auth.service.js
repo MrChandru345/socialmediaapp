@@ -273,19 +273,110 @@ async function getCurrentUser(userId) {
 }
 
 async function requestPasswordReset(email) {
-  await User.exists({ email: normalizeEmail(email) });
+  const normalizedEmail = normalizeEmail(email);
+  const user = await User.findOne({ email: normalizedEmail });
+
+  if (!user) {
+    return {
+      delivery: "email",
+      message: "If an account exists for this email, a reset link will be sent."
+    };
+  }
+
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  user.resetPasswordToken = hashedToken;
+  user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
+  await user.save();
+
+  const frontendUrl = process.env.FRONTEND_URL || "https://socialmediaapp-nine-mu.vercel.app";
+  const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
+
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #121212; color: #ffffff; border-radius: 16px; border: 1px solid #262626;">
+      <h2 style="background: linear-gradient(135deg, #ff8a5c, #f2317a, #7c4dff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 24px; text-align: center; margin-bottom: 8px;">Curator</h2>
+      <h3 style="color: #ffffff; font-size: 18px; margin-top: 0;">Password Reset Request</h3>
+      <p style="color: #a3a3a3; font-size: 14px; line-height: 1.6;">Hi ${user.username},</p>
+      <p style="color: #a3a3a3; font-size: 14px; line-height: 1.6;">We received a request to reset the password for your Curator account. Click the button below to set a new password:</p>
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="${resetUrl}" style="background: linear-gradient(135deg, #ff8a5c, #f2317a); color: white; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: bold; display: inline-block; box-shadow: 0 4px 16px rgba(242, 49, 122, 0.4);">Reset Password</a>
+      </div>
+      <p style="color: #737373; font-size: 12px; text-align: center;">This reset link expires in 15 minutes.<br/>If you did not request a password reset, you can safely ignore this email.</p>
+    </div>
+  `;
+
+  if (smtpUser && smtpPass) {
+    try {
+      const nodemailer = require("nodemailer");
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: smtpUser,
+          pass: smtpPass
+        }
+      });
+      await transporter.sendMail({
+        from: `"Curator" <${smtpUser}>`,
+        to: user.email,
+        subject: "Reset Your Curator Password",
+        html: emailHtml
+      });
+    } catch (err) {
+      console.error("Nodemailer Gmail SMTP Error:", err);
+    }
+  } else if (resendApiKey) {
+    try {
+      const { Resend } = require("resend");
+      const resendClient = new Resend(resendApiKey);
+      await resendClient.emails.send({
+        from: "Curator <onboarding@resend.dev>",
+        to: [user.email],
+        subject: "Reset Your Curator Password",
+        html: emailHtml
+      });
+    } catch (err) {
+      console.error("Resend Email Delivery Error:", err);
+    }
+  }
 
   return {
     delivery: "email",
-    otpReady: true,
     message: "If an account exists for this email, a reset link will be sent."
   };
 }
 
-async function resetPassword() {
+async function resetPassword(payload = {}) {
+  const token = payload.token || payload.otp;
+  const password = payload.password;
+
+  if (!token || !password) {
+    throw new AppError("Reset token and new password are required.", 400);
+  }
+
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await User.findOne({
+    resetPasswordToken: hashedToken,
+    resetPasswordExpires: { $gt: Date.now() }
+  }).select("+password +resetPasswordToken +resetPasswordExpires");
+
+  if (!user) {
+    throw new AppError("Invalid or expired password reset token.", 400);
+  }
+
+  user.password = password;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
+  await user.save();
+
   return {
     resetReady: true,
-    message: "Password reset is ready for a mail or OTP provider."
+    message: "Password reset successful! You can now log in with your new password."
   };
 }
 

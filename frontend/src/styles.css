@@ -9788,6 +9788,60 @@ body.reels-page-active .sidebar:hover .user-chip {
   body.reels-page-active .reel-modal-overlay {
     z-index: 1005 !important;
   }
+
+/* Reel Interactive Timeline Progress & Skip Bar */
+.reel-timeline-bar-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 14px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  z-index: 10;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.4), transparent);
+  cursor: pointer;
+}
+
+.reel-timeline-track {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 99px;
+  overflow: visible;
+  transition: height 0.15s ease;
+}
+
+.reel-timeline-bar-container:hover .reel-timeline-track {
+  height: 6px;
+}
+
+.reel-timeline-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #ff8a5c, #f2317a, #ffffff);
+  border-radius: 99px;
+  pointer-events: none;
+  transition: width 0.05s linear;
+}
+
+.reel-timeline-scrubber {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 12;
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
   body.reels-page-active .reel-comments-overlay .reel-comments-drawer {
     height: 70dvh !important;
     max-height: 70dvh !important;

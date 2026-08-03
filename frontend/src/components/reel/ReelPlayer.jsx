@@ -29,8 +29,31 @@ export default function ReelPlayer({ reel, onPostClick }) {
   const [isFollowingAuthor, setIsFollowingAuthor] = useState(Boolean(reel.author?.isFollowing));
   const [isFollowPending, setIsFollowPending] = useState(false);
   const [showStoryToast, setShowStoryToast] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
   const clickTimeoutRef = useRef(null);
   const storyToastTimeoutRef = useRef(null);
+
+  const handleTimeUpdate = () => {
+    if (!isSeeking && videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration || 0);
+    }
+  };
+
+  const handleSeekChange = (e) => {
+    const newTime = Number(e.target.value);
+    setCurrentTime(newTime);
+    if (videoRef.current) {
+      videoRef.current.currentTime = newTime;
+    }
+  };
   const authorId = reel.author?.id || reel.author?._id;
   const isOwnReel = authorId && user?.id && String(authorId) === String(user.id);
 
@@ -257,6 +280,8 @@ export default function ReelPlayer({ reel, onPostClick }) {
             controlsList="nodownload noremoteplayback noplaybackrate"
             disablePictureInPicture
             disableRemotePlayback
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
           />
 
           {!isPlaying && (
@@ -277,6 +302,30 @@ export default function ReelPlayer({ reel, onPostClick }) {
               {isMuted ? "volume_off" : "volume_up"}
             </span>
           </button>
+
+          {/* Reel Interactive Timeline Skip Bar */}
+          <div className="reel-timeline-bar-container" onClick={(e) => e.stopPropagation()}>
+            <div className="reel-timeline-track">
+              <div 
+                className="reel-timeline-fill" 
+                style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }} 
+              />
+              <input
+                type="range"
+                className="reel-timeline-scrubber"
+                min="0"
+                max={duration || 100}
+                step="0.05"
+                value={currentTime}
+                onChange={handleSeekChange}
+                onMouseDown={() => setIsSeeking(true)}
+                onMouseUp={() => setIsSeeking(false)}
+                onTouchStart={() => setIsSeeking(true)}
+                onTouchEnd={() => setIsSeeking(false)}
+                aria-label="Reel playback progress"
+              />
+            </div>
+          </div>
         </div>
 
         {/* ACTION BUTTONS - right of video */}

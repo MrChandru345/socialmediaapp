@@ -314,6 +314,9 @@ export default function PostCard({ onRemove, post }) {
             loop
             playsInline
             muted={isMuted}
+            controlsList="nodownload noremoteplayback noplaybackrate"
+            disablePictureInPicture
+            disableRemotePlayback
             onClick={handleVideoClick}
             onLoadedMetadata={(e) => {
               const { videoWidth, videoHeight } = e.target;
