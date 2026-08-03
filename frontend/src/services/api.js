@@ -8,8 +8,8 @@ export const AUTH_TOKEN_REFRESHED_EVENT = "curator:auth-token-refreshed";
 export const AUTH_SESSION_EXPIRED_EVENT = "curator:auth-session-expired";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE_URL,
-  timeout: 15000
+  baseURL: import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || DEFAULT_BASE_URL,
+  timeout: 60000
 });
 
 function storage() {
