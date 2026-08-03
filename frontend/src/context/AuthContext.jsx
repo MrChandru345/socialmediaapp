@@ -121,7 +121,7 @@ export function AuthProvider({ children }) {
   const storedAccounts = useMemo(() => getStoredAccounts(), []);
   const initialSession = useMemo(() => findInitialSession(storedAccounts), [storedAccounts]);
   const [state, setState] = useState({
-    status: initialSession ? "loading" : "ready",
+    status: initialSession ? "authenticated" : "ready",
     token: initialSession?.accessToken || null,
     refreshToken: initialSession?.refreshToken || null,
     user: initialSession?.user || null,
