@@ -310,37 +310,55 @@ async function requestPasswordReset(email) {
     </div>
   `;
 
-  if (smtpUser && smtpPass) {
-    try {
-      const nodemailer = require("nodemailer");
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: smtpUser,
-          pass: smtpPass
-        }
-      });
-      await transporter.sendMail({
-        from: `"Curator" <${smtpUser}>`,
-        to: user.email,
-        subject: "Reset Your Curator Password",
-        html: emailHtml
-      });
-    } catch (err) {
-      console.error("Nodemailer Gmail SMTP Error:", err);
-    }
-  } else if (resendApiKey) {
+  let emailSent = false;
+
+  if (resendApiKey) {
     try {
       const { Resend } = require("resend");
-      const resendClient = new Resend(resendApiKey);
-      await resendClient.emails.send({
+      const resendClient = new Resend(resendApiKey.trim());
+      const { data, error: resendErr } = await resendClient.emails.send({
         from: "Curator <onboarding@resend.dev>",
         to: [user.email],
         subject: "Reset Your Curator Password",
         html: emailHtml
       });
+      if (resendErr) {
+        console.error("Resend API Error details:", resendErr);
+      } else if (data?.id) {
+        emailSent = true;
+        console.log("Resend email sent successfully:", data.id);
+      }
     } catch (err) {
-      console.error("Resend Email Delivery Error:", err);
+      console.error("Resend Email Delivery Exception:", err);
+    }
+  }
+
+  if (!emailSent && smtpUser && smtpPass) {
+    try {
+      const nodemailer = require("nodemailer");
+      const cleanedPass = String(smtpPass).replace(/\s+/g, "");
+      const cleanedUser = String(smtpUser).trim();
+
+      const transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: {
+          user: cleanedUser,
+          pass: cleanedPass
+        }
+      });
+
+      await transporter.sendMail({
+        from: `"Curator App" <${cleanedUser}>`,
+        to: user.email,
+        subject: "Reset Your Curator Password",
+        html: emailHtml
+      });
+      emailSent = true;
+      console.log("Gmail SMTP email sent successfully via Nodemailer");
+    } catch (err) {
+      console.error("Nodemailer Gmail SMTP Error:", err);
     }
   }
 
